@@ -1,4 +1,4 @@
 stem,variant,system,dataset,ef,target_recall,num_blocks,mini_batch,queries_per_block,pipe_width,qps,avg_ms,p50_ms,p90_ms,p99_ms,p999_ms,max_ms,latency_kind
-flashanns_sift1b_ef45_nb756,,FlashANNS,sift1b,45,0.90,756,0,0,2,53627.714594,14.010635,13.873100,14.529943,15.740871,25.171041,25.171041,BatchLatency(ms)
-quiver_sift1b_ef45_q2_nb216,,Quiver,sift1b,45,0.90,216,0,2,2,67861.343146,6.347595,6.331205,6.434917,6.653070,11.883974,16.177893,QueryLatency(ms)
-gustann_sift1b_ef45_mb1120,,GustANN,sift1b,45,0.90,0,1120,0,1,89495.830819,455.670040,479.340076,510.686874,527.290106,535.629988,535.629988,BatchLatency(ms)
+flashanns_sift1b_ef45_nb756,,FlashANNS,sift1b,45,0.90,756,0,0,2,45479.609474,16.535568,16.595840,17.351151,18.010139,20.611048,20.611048,BatchLatency(ms)
+gustann_sift1b_ef45_mb1120,,GustANN,sift1b,45,0.90,0,1120,0,1,120935.280383,335.448681,353.012085,378.324986,389.709949,397.092819,397.092819,BatchLatency(ms)
+quiver_sift1b_ef45_q2_nb216,,Quiver,sift1b,45,0.90,216,0,2,2,61594.428179,6.995436,6.989956,7.208824,7.369995,16.550779,19.912004,QueryLatency(ms)

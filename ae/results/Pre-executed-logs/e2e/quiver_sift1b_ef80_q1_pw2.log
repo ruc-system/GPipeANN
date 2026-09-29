@@ -1,0 +1,79 @@
+dataset=sift1b
+AE_SCALE=1b
+CUDA_VISIBLE_DEVICES=3
+SPDK_BASE_LBA=83886080
+QUIVER_SPDK_BLOCK_OFFSET=0
+ssd_list=/mnt/nvme12/wpq-ae/home/quiver-ae/ae/.cache/ssd_list_4.txt
+PCI_1SSD=0000:ac:00.0
+BIN_DIR=/mnt/nvme12/wpq-ae/home/quiver-ae/build
+cmd: /mnt/nvme12/wpq-ae/home/quiver-ae/build/bin/quiver_search --index-dir /mnt/nvme12/wpq-ae/index/sift1b-R128-QD32/ --query /mnt/nvme12/wpq-ae/dataset/sift1b/query.u8bin --ground-truth /mnt/nvme12/wpq-ae/dataset/sift1b/gt.ibin --data-type uint8 --topk 10 --ef-search 80 --repeat 20 --pipe-width 2 --queries-per-block 1 --poll-threads 6 --early-exit-policy none --ssd-list-file /mnt/nvme12/wpq-ae/home/quiver-ae/ae/.cache/ssd_list_4.txt --num-blocks-list 108\,216\,324
+[Quiver] runners_per_ssd=1
+[Quiver] early-exit policy=none
+
+============================================================
+Quiver Sweep: num_blocks=108 pipe_width=2 queries_per_block=1
+============================================================
+
+EAL: '-c <coremask>' option is deprecated, and will be removed in a future release
+EAL: 	Use '-l <corelist>' or '--lcores=<corelist>' option instead
+========== Quiver Result ==========
+Query Params:
+  topk=10 ef_search=80 repeat=20 data_type=uint8
+Runtime Params:
+  num_blocks=108 pipe_width=2 queries_per_block=1 task_slots=108 io_slots=216 max_inflight=108 poll_threads=6 poll_submit_batch_size=256 prefeed=0 spdk_backpressure=0 spdk_nvme_errors=0
+
+Performance:
+  QPS: 23772.29
+  QueryLatency(ms): avg=4.525 p50=4.516 p90=4.604 p99=4.702 p99.9=4.964 max=35.874
+  SSD Avg Bandwidth: 7.49 GB/s
+  SSD Avg IOPS: 1,963,572
+  SSD Hot Avg Bandwidth: 7.54 GB/s
+  SSD Hot Avg IOPS: 1,975,365
+===================================
+[Quiver] BatchLatency(ms): count=190728 avg=4.524 p90=4.605 p99=4.701 max=35.874
+[Quiver] Finish summary: policy=none avg_finish_step=82.60 finished=200000/200000
+Recall @ 10: 0.961120
+
+============================================================
+Quiver Sweep: num_blocks=216 pipe_width=2 queries_per_block=1
+============================================================
+
+========== Quiver Result ==========
+Query Params:
+  topk=10 ef_search=80 repeat=20 data_type=uint8
+Runtime Params:
+  num_blocks=216 pipe_width=2 queries_per_block=1 task_slots=216 io_slots=432 max_inflight=216 poll_threads=6 poll_submit_batch_size=256 prefeed=0 spdk_backpressure=0 spdk_nvme_errors=0
+
+Performance:
+  QPS: 39025.39
+  QueryLatency(ms): avg=5.311 p50=5.239 p90=5.319 p99=5.413 p99.9=13.910 max=257.333
+  SSD Avg Bandwidth: 12.30 GB/s
+  SSD Avg IOPS: 3,223,557
+  SSD Hot Avg Bandwidth: 13.00 GB/s
+  SSD Hot Avg IOPS: 3,407,741
+===================================
+[Quiver] BatchLatency(ms): count=179339 avg=5.301 p90=5.320 p99=5.406 max=257.333
+[Quiver] Finish summary: policy=none avg_finish_step=82.60 finished=200000/200000
+Recall @ 10: 0.961140
+
+============================================================
+Quiver Sweep: num_blocks=324 pipe_width=2 queries_per_block=1
+============================================================
+
+========== Quiver Result ==========
+Query Params:
+  topk=10 ef_search=80 repeat=20 data_type=uint8
+Runtime Params:
+  num_blocks=324 pipe_width=2 queries_per_block=1 task_slots=324 io_slots=648 max_inflight=324 poll_threads=6 poll_submit_batch_size=256 prefeed=0 spdk_backpressure=0 spdk_nvme_errors=0
+
+Performance:
+  QPS: 43257.29
+  QueryLatency(ms): avg=6.956 p50=6.812 p90=6.909 p99=7.023 p99.9=29.918 max=407.984
+  SSD Avg Bandwidth: 13.63 GB/s
+  SSD Avg IOPS: 3,572,923
+  SSD Hot Avg Bandwidth: 15.04 GB/s
+  SSD Hot Avg IOPS: 3,941,977
+===================================
+[Quiver] BatchLatency(ms): count=173555 avg=6.946 p90=6.910 p99=7.014 max=407.984
+[Quiver] Finish summary: policy=none avg_finish_step=82.60 finished=200000/200000
+Recall @ 10: 0.961210

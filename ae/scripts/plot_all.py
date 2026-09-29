@@ -115,6 +115,14 @@ class Corpus:
         return next((d for d in ("sift1b", "sift1m") if d in have), None)
 
 
+def tradeoff_style(system: str) -> dict:
+    style = ps.line_style(system)
+    marker = {"FlashANNS": "s", "GustANN": "^"}.get(system)
+    if marker is not None:
+        style["marker"] = marker
+    return style
+
+
 def draw_tradeoff(
     ax, corpus: Corpus, dataset: str, ef: int, systems, stat: str,
     *, drop_lowest_quiver: bool = False,
@@ -140,7 +148,7 @@ def draw_tradeoff(
             continue
         px = [p.latency(stat, pb) for p in front]
         py = [p.qps for p in front]
-        ax.plot(px, py, label=SYSTEM_DISPLAY.get(s, s), **ps.line_style(s))
+        ax.plot(px, py, label=SYSTEM_DISPLAY.get(s, s), **tradeoff_style(s))
         xs.extend(px)
         ys.extend(py)
         drawn = True
@@ -248,7 +256,7 @@ def complete_system_legend(systems) -> tuple[list, list[str]]:
     labels = []
     for system in systems:
         display = SYSTEM_DISPLAY.get(system, system)
-        handles.append(Line2D([], [], label=display, **ps.line_style(system)))
+        handles.append(Line2D([], [], label=display, **tradeoff_style(system)))
         labels.append(display)
     return handles, labels
 
@@ -618,6 +626,9 @@ def fig_q_sensitivity(corpus: Corpus, out: Path) -> bool:
         missing = [pos[q] for q in q_axis if q not in got]
         if len(xs) > 1:
             style = ps.series_style(index)
+            markers = {"0.90": "s", "0.94": "D", "0.96": "v"}
+            if bucket in markers:
+                style["marker"] = markers[bucket]
             line, = axes[0].plot(xs, ys, label=f"Recall@10= {bucket}", **style)
             if missing:
                 mark_y = 4500 if bucket == "0.96" else min(ys) * 0.75
@@ -677,6 +688,10 @@ def fig_q_sensitivity(corpus: Corpus, out: Path) -> bool:
         plt.close(fig)
         return False
     handles, labels = complete_recall_legend()
+    for handle, bucket in zip(handles, FIG8_BUCKETS):
+        marker = {"0.90": "s", "0.94": "D", "0.96": "v"}.get(bucket)
+        if marker is not None:
+            handle.set_marker(marker)
     prefix = Line2D([], [], linestyle="none", marker=None, color="none")
     ps.finish(
         fig, [list(axes)], out,
@@ -819,7 +834,7 @@ def fig_io_latency(corpus: Corpus, out: Path) -> bool:
                 ys = [0.50, 0.90, 0.99, 1.0]
             ax.plot(
                 xs, ys, label=SYSTEM_DISPLAY.get(s, s),
-                markevery=max(1, len(xs) // 12), **ps.line_style(s)
+                markevery=max(1, len(xs) // 12), **tradeoff_style(s)
             )
             xs_all.extend(xs)
         if xs_all:

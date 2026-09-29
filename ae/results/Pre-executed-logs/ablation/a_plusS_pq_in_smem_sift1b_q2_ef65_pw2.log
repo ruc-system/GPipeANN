@@ -1,0 +1,45 @@
+dataset=sift1b
+AE_SCALE=1b
+CUDA_VISIBLE_DEVICES=3
+SPDK_BASE_LBA=83886080
+QUIVER_SPDK_BLOCK_OFFSET=0
+ssd_list=/mnt/nvme12/wpq-ae/home/quiver-ae/ae/.cache/ssd_list_4.txt
+PCI_1SSD=0000:ac:00.0
+BIN_DIR=/mnt/nvme12/wpq-ae/home/quiver-ae/build-ae
+cmd: /mnt/nvme12/wpq-ae/home/quiver-ae/build-ae/bin/strawmen_pq_in_smem --index-dir /mnt/nvme12/wpq-ae/index/sift1b-R128-QD32/ --query /mnt/nvme12/wpq-ae/dataset/sift1b/query.u8bin --ground-truth /mnt/nvme12/wpq-ae/dataset/sift1b/gt.ibin --data-type uint8 --topk 10 --ef-search 65 --repeat 20 --pipe-width 2 --queries-per-block 2 --poll-threads 6 --ssd-list-file /mnt/nvme12/wpq-ae/home/quiver-ae/ae/.cache/ssd_list_4.txt --num-blocks-list 216
+EAL: '-c <coremask>' option is deprecated, and will be removed in a future release
+EAL: 	Use '-l <corelist>' or '--lcores=<corelist>' option instead
+========== Strawman PQ-in-shared-memory (PQ LUT in shared memory) Result ==========
+Query Params:
+  topk=10 ef_search=65 repeat=20 data_type=uint8
+Runtime Params:
+  num_blocks=216 pipe_width=2 poll_threads=6 poll_submit_batch_size=256 prefeed=0 queries_per_block=2
+
+Performance:
+  QPS: 50860.86
+  QueryLatency(ms): avg=8.476 p50=8.432 p90=8.824 p99=9.139 p99.9=18.182 max=20.782
+  SSD Avg Bandwidth: 13.16 GB/s
+  SSD Avg IOPS: 3,450,979
+  SSD Hot Avg Bandwidth: 14.13 GB/s
+  SSD Hot Avg IOPS: 3,705,319
+===================================
+
+========== Light Breakdown Samples: plusk_pq_in_smem ==========
+  Metric                      count       avg_us       p50_us       p90_us       p99_us       max_us
+  ---------------------- ---------- ------------ ------------ ------------ ------------ ------------
+  Compute                       200      2379.07      2371.04      2599.65      2881.65      3257.83
+  IO wait                       200      6430.93      6344.75      6917.29      8357.63     17684.65
+  Resume                        200        49.12        47.12        65.24       117.07       120.56
+  Scheduling gap                  0         0.00         0.00         0.00         0.00         0.00
+  Other                           0         0.00         0.00         0.00         0.00         0.00
+  kernel launch                   0         0.00         0.00         0.00         0.00         0.00
+  H2D                             0         0.00         0.00         0.00         0.00         0.00
+  D2H                             0         0.00         0.00         0.00         0.00         0.00
+  Breakdown total               200      8859.11      8762.91      9582.18     11356.36     21063.04
+  CTA window                      0         0.00         0.00         0.00         0.00         0.00
+  CTA active                      0         0.00         0.00         0.00         0.00         0.00
+  CTA pure IO wait                0         0.00         0.00         0.00         0.00         0.00
+  CTA active %                    0         0.00         0.00         0.00         0.00         0.00
+=============================================
+
+Recall @ 10: 0.945690

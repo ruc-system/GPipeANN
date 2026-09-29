@@ -1,0 +1,203 @@
+dataset=deep1b
+AE_SCALE=1b
+CUDA_VISIBLE_DEVICES=3
+SPDK_BASE_LBA=0
+QUIVER_SPDK_BLOCK_OFFSET=0
+ssd_list=/mnt/nvme12/wpq-ae/home/quiver-ae/ae/.cache/ssd_list_4.txt
+PCI_1SSD=0000:ad:00.0
+BIN_DIR=/mnt/nvme12/wpq-ae/home/quiver-ae/build
+cmd: /mnt/nvme12/wpq-ae/home/quiver-ae/build/bin/gustann_search --index-dir /mnt/nvme12/wpq-ae/index/deep1b-R128-QD32/ --query /mnt/nvme12/wpq-ae/dataset/deep1b/query.fbin --ground-truth /mnt/nvme12/wpq-ae/dataset/deep1b/gt.ibin --data-type float --topk 10 --ef-search 70 --repeat 20 --pipe-width 1 --worker-threads 2 --runner-contexts 20 --ssd-list-file /mnt/nvme12/wpq-ae/home/quiver-ae/ae/.cache/ssd_list_4.txt --mini-batch-list 16\,24\,32\,48\,64\,96\,128\,192
+
+============================================================
+GustANN Sweep: mini_batch=16 pipe_width=1
+============================================================
+
+EAL: '-c <coremask>' option is deprecated, and will be removed in a future release
+EAL: 	Use '-l <corelist>' or '--lcores=<corelist>' option instead
+TID: 1517040 9
+TID: 1517037 3
+TID: 1517039 7
+TID: 1517038 5
+========== GustANN Result ==========
+Query Params:
+  topk=10 ef_search=70 repeat=20 data_type=float
+Runtime Params:
+  mini_batch=16 pipe_width=1 worker_threads=2 runner_contexts=20 parallelism=40
+
+Performance:
+  QPS: 28291.69
+  BatchLatency(ms): avg=22.563 p50=22.202 p90=24.366 p99=28.192 p99.9=33.124 max=34.353
+  SSD Avg Bandwidth: 8.50 GB/s
+  SSD Avg IOPS: 2,228,938
+  SSD Hot Avg Bandwidth: 8.66 GB/s
+  SSD Hot Avg IOPS: 2,270,252
+===================================
+Recall @ 10: 0.900340
+
+============================================================
+GustANN Sweep: mini_batch=24 pipe_width=1
+============================================================
+
+TID: 1517289 9
+TID: 1517288 7
+TID: 1517287 5
+TID: 1517286 3
+========== GustANN Result ==========
+Query Params:
+  topk=10 ef_search=70 repeat=20 data_type=float
+Runtime Params:
+  mini_batch=24 pipe_width=1 worker_threads=2 runner_contexts=20 parallelism=40
+
+Performance:
+  QPS: 37276.26
+  BatchLatency(ms): avg=25.668 p50=25.284 p90=27.668 p99=32.069 p99.9=36.055 max=37.413
+  SSD Avg Bandwidth: 11.20 GB/s
+  SSD Avg IOPS: 2,936,780
+  SSD Hot Avg Bandwidth: 11.36 GB/s
+  SSD Hot Avg IOPS: 2,976,829
+===================================
+Recall @ 10: 0.900340
+
+============================================================
+GustANN Sweep: mini_batch=32 pipe_width=1
+============================================================
+
+TID: 1517535 9
+TID: 1517532 3
+TID: 1517534 7
+TID: 1517533 5
+========== GustANN Result ==========
+Query Params:
+  topk=10 ef_search=70 repeat=20 data_type=float
+Runtime Params:
+  mini_batch=32 pipe_width=1 worker_threads=2 runner_contexts=20 parallelism=40
+
+Performance:
+  QPS: 43936.73
+  BatchLatency(ms): avg=29.019 p50=28.555 p90=31.424 p99=37.450 p99.9=40.810 max=42.241
+  SSD Avg Bandwidth: 13.20 GB/s
+  SSD Avg IOPS: 3,461,520
+  SSD Hot Avg Bandwidth: 13.53 GB/s
+  SSD Hot Avg IOPS: 3,548,052
+===================================
+Recall @ 10: 0.900340
+
+============================================================
+GustANN Sweep: mini_batch=48 pipe_width=1
+============================================================
+
+TID: 1517764 9
+TID: 1517763 7
+TID: 1517762 5
+TID: 1517761 3
+========== GustANN Result ==========
+Query Params:
+  topk=10 ef_search=70 repeat=20 data_type=float
+Runtime Params:
+  mini_batch=48 pipe_width=1 worker_threads=2 runner_contexts=20 parallelism=40
+
+Performance:
+  QPS: 46414.34
+  BatchLatency(ms): avg=41.174 p50=40.494 p90=45.122 p99=52.996 p99.9=58.023 max=60.982
+  SSD Avg Bandwidth: 13.95 GB/s
+  SSD Avg IOPS: 3,656,717
+  SSD Hot Avg Bandwidth: 14.33 GB/s
+  SSD Hot Avg IOPS: 3,755,760
+===================================
+Recall @ 10: 0.900340
+
+============================================================
+GustANN Sweep: mini_batch=64 pipe_width=1
+============================================================
+
+TID: 1518025 9
+TID: 1518024 7
+TID: 1518023 5
+TID: 1518022 3
+========== GustANN Result ==========
+Query Params:
+  topk=10 ef_search=70 repeat=20 data_type=float
+Runtime Params:
+  mini_batch=64 pipe_width=1 worker_threads=2 runner_contexts=20 parallelism=40
+
+Performance:
+  QPS: 49043.48
+  BatchLatency(ms): avg=51.910 p50=51.168 p90=57.291 p99=67.313 p99.9=75.370 max=79.175
+  SSD Avg Bandwidth: 14.74 GB/s
+  SSD Avg IOPS: 3,863,851
+  SSD Hot Avg Bandwidth: 15.41 GB/s
+  SSD Hot Avg IOPS: 4,040,450
+===================================
+Recall @ 10: 0.900340
+
+============================================================
+GustANN Sweep: mini_batch=96 pipe_width=1
+============================================================
+
+TID: 1518198 9
+TID: 1518197 7
+TID: 1518196 5
+TID: 1518195 3
+========== GustANN Result ==========
+Query Params:
+  topk=10 ef_search=70 repeat=20 data_type=float
+Runtime Params:
+  mini_batch=96 pipe_width=1 worker_threads=2 runner_contexts=20 parallelism=40
+
+Performance:
+  QPS: 45820.35
+  BatchLatency(ms): avg=83.250 p50=82.776 p90=94.476 p99=110.502 p99.9=120.856 max=128.063
+  SSD Avg Bandwidth: 13.77 GB/s
+  SSD Avg IOPS: 3,609,920
+  SSD Hot Avg Bandwidth: 15.69 GB/s
+  SSD Hot Avg IOPS: 4,113,526
+===================================
+Recall @ 10: 0.900340
+
+============================================================
+GustANN Sweep: mini_batch=128 pipe_width=1
+============================================================
+
+TID: 1518334 9
+TID: 1518333 7
+TID: 1518332 5
+TID: 1518331 3
+========== GustANN Result ==========
+Query Params:
+  topk=10 ef_search=70 repeat=20 data_type=float
+Runtime Params:
+  mini_batch=128 pipe_width=1 worker_threads=2 runner_contexts=20 parallelism=40
+
+Performance:
+  QPS: 44230.38
+  BatchLatency(ms): avg=114.967 p50=113.643 p90=127.118 p99=145.828 p99.9=166.374 max=175.222
+  SSD Avg Bandwidth: 13.29 GB/s
+  SSD Avg IOPS: 3,484,655
+  SSD Hot Avg Bandwidth: 14.96 GB/s
+  SSD Hot Avg IOPS: 3,920,495
+===================================
+Recall @ 10: 0.900340
+
+============================================================
+GustANN Sweep: mini_batch=192 pipe_width=1
+============================================================
+
+TID: 1518603 9
+TID: 1518602 7
+TID: 1518601 5
+TID: 1518600 3
+========== GustANN Result ==========
+Query Params:
+  topk=10 ef_search=70 repeat=20 data_type=float
+Runtime Params:
+  mini_batch=192 pipe_width=1 worker_threads=2 runner_contexts=20 parallelism=40
+
+Performance:
+  QPS: 54222.82
+  BatchLatency(ms): avg=139.905 p50=138.375 p90=154.472 p99=177.012 p99.9=196.014 max=207.875
+  SSD Avg Bandwidth: 16.30 GB/s
+  SSD Avg IOPS: 4,271,901
+  SSD Hot Avg Bandwidth: 20.77 GB/s
+  SSD Hot Avg IOPS: 5,443,995
+===================================
+Recall @ 10: 0.900340

@@ -1,0 +1,49 @@
+dataset=sift1b
+AE_SCALE=1b
+CUDA_VISIBLE_DEVICES=3
+SPDK_BASE_LBA=83886080
+QUIVER_SPDK_BLOCK_OFFSET=0
+ssd_list=/mnt/nvme12/wpq-ae/home/quiver-ae/ae/.cache/ssd_list_4.txt
+PCI_1SSD=0000:ac:00.0
+BIN_DIR=/mnt/nvme12/wpq-ae/home/quiver-ae/build-ae
+cmd: /mnt/nvme12/wpq-ae/home/quiver-ae/build-ae/bin/quiver_search --index-dir /mnt/nvme12/wpq-ae/index/sift1b-R128-QD32/ --query /mnt/nvme12/wpq-ae/dataset/sift1b/query.u8bin --ground-truth /mnt/nvme12/wpq-ae/dataset/sift1b/gt.ibin --data-type uint8 --topk 10 --ef-search 80 --repeat 20 --pipe-width 2 --queries-per-block 1 --poll-threads 6 --early-exit-policy none --ssd-list-file /mnt/nvme12/wpq-ae/home/quiver-ae/ae/.cache/ssd_list_4.txt --num-blocks-list 324
+[Quiver] runners_per_ssd=1
+[Quiver] early-exit policy=none
+EAL: '-c <coremask>' option is deprecated, and will be removed in a future release
+EAL: 	Use '-l <corelist>' or '--lcores=<corelist>' option instead
+========== Quiver Result ==========
+Query Params:
+  topk=10 ef_search=80 repeat=20 data_type=uint8
+Runtime Params:
+  num_blocks=324 pipe_width=2 queries_per_block=1 task_slots=324 io_slots=648 max_inflight=324 poll_threads=6 poll_submit_batch_size=256 prefeed=0 spdk_backpressure=0 spdk_nvme_errors=0
+
+Performance:
+  QPS: 44669.94
+  QueryLatency(ms): avg=6.723 p50=6.568 p90=6.665 p99=6.792 p99.9=28.370 max=415.517
+  SSD Avg Bandwidth: 14.08 GB/s
+  SSD Avg IOPS: 3,689,747
+  SSD Hot Avg Bandwidth: 15.59 GB/s
+  SSD Hot Avg IOPS: 4,088,050
+===================================
+[Quiver] BatchLatency(ms): count=171813 avg=6.721 p90=6.664 p99=6.773 max=415.517
+
+========== Light Breakdown Samples: Quiver ==========
+  Metric                      count       avg_us       p50_us       p90_us       p99_us       max_us
+  ---------------------- ---------- ------------ ------------ ------------ ------------ ------------
+  Compute                       200      2958.42      2136.59      2229.27      2498.50    164592.90
+  IO wait                       200      5040.57      4601.67      4806.04      5353.62     91882.61
+  Resume                        200        77.22        52.41        59.27        78.15      4885.13
+  Scheduling gap                  0         0.00         0.00         0.00         0.00         0.00
+  Other                           0         0.00         0.00         0.00         0.00         0.00
+  kernel launch                   0         0.00         0.00         0.00         0.00         0.00
+  H2D                             0         0.00         0.00         0.00         0.00         0.00
+  D2H                             0         0.00         0.00         0.00         0.00         0.00
+  Breakdown total               200      8076.21      6790.67      7094.57      7930.28    261360.64
+  CTA window                      0         0.00         0.00         0.00         0.00         0.00
+  CTA active                      0         0.00         0.00         0.00         0.00         0.00
+  CTA pure IO wait                0         0.00         0.00         0.00         0.00         0.00
+  CTA active %                  200        66.16        65.91        68.31        70.23        99.96
+=============================================
+
+[Quiver] Finish summary: policy=none avg_finish_step=82.60 finished=200000/200000
+Recall @ 10: 0.961070

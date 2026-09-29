@@ -1,0 +1,251 @@
+dataset=sift1b
+AE_SCALE=1b
+CUDA_VISIBLE_DEVICES=3
+SPDK_BASE_LBA=83886080
+QUIVER_SPDK_BLOCK_OFFSET=0
+ssd_list=/mnt/nvme12/wpq-ae/home/quiver-ae/ae/.cache/ssd_list_4.txt
+PCI_1SSD=0000:ac:00.0
+BIN_DIR=/mnt/nvme12/wpq-ae/home/quiver-ae/build
+cmd: /mnt/nvme12/wpq-ae/home/quiver-ae/build/bin/flashanns_search --index-dir /mnt/nvme12/wpq-ae/index/sift1b-R128-QD32/ --query /mnt/nvme12/wpq-ae/dataset/sift1b/query.u8bin --ground-truth /mnt/nvme12/wpq-ae/dataset/sift1b/gt.ibin --data-type uint8 --topk 10 --ef-search 45 --repeat 20 --pipe-width 2 --poll-threads 6 --ssd-list-file /mnt/nvme12/wpq-ae/home/quiver-ae/ae/.cache/ssd_list_4.txt --num-blocks-list 108\,216\,324\,432\,540\,648\,756\,864\,972\,1080
+
+============================================================
+FlashANNS Sweep: num_blocks=108 pipe_width=2
+============================================================
+
+EAL: '-c <coremask>' option is deprecated, and will be removed in a future release
+EAL: 	Use '-l <corelist>' or '--lcores=<corelist>' option instead
+TID: 1489362 9
+TID: 1489361 7
+TID: 1489359 3
+TID: 1489360 5
+========== FlashANNS Result ==========
+Query Params:
+  topk=10 ef_search=45 repeat=20 data_type=uint8
+Runtime Params:
+  batch=108 pipe_width=2 poll_threads=6 spdk_task_contexts=1024 poll_submit_batch_size=256
+
+Performance:
+  QPS: 25493.72
+  BatchLatency(ms): avg=4.236 p50=4.185 p90=4.594 p99=5.106 p99.9=5.327 max=7.782
+  SSD Avg Bandwidth: 4.71 GB/s
+  SSD Avg IOPS: 1,234,568
+  SSD Hot Avg Bandwidth: 4.83 GB/s
+  SSD Hot Avg IOPS: 1,265,472
+===================================
+Recall @ 10: 0.908360
+
+============================================================
+FlashANNS Sweep: num_blocks=216 pipe_width=2
+============================================================
+
+TID: 1489916 9
+TID: 1489913 3
+TID: 1489914 5
+TID: 1489915 7
+========== FlashANNS Result ==========
+Query Params:
+  topk=10 ef_search=45 repeat=20 data_type=uint8
+Runtime Params:
+  batch=216 pipe_width=2 poll_threads=6 spdk_task_contexts=1024 poll_submit_batch_size=256
+
+Performance:
+  QPS: 42531.68
+  BatchLatency(ms): avg=5.078 p50=5.008 p90=5.534 p99=5.875 p99.9=17.066 max=17.066
+  SSD Avg Bandwidth: 7.86 GB/s
+  SSD Avg IOPS: 2,059,671
+  SSD Hot Avg Bandwidth: 8.05 GB/s
+  SSD Hot Avg IOPS: 2,110,835
+===================================
+Recall @ 10: 0.908260
+
+============================================================
+FlashANNS Sweep: num_blocks=324 pipe_width=2
+============================================================
+
+TID: 1490601 9
+TID: 1490600 7
+TID: 1490598 3
+TID: 1490599 5
+========== FlashANNS Result ==========
+Query Params:
+  topk=10 ef_search=45 repeat=20 data_type=uint8
+Runtime Params:
+  batch=324 pipe_width=2 poll_threads=6 spdk_task_contexts=1024 poll_submit_batch_size=256
+
+Performance:
+  QPS: 53151.40
+  BatchLatency(ms): avg=6.089 p50=6.004 p90=6.528 p99=6.776 p99.9=22.987 max=22.987
+  SSD Avg Bandwidth: 9.82 GB/s
+  SSD Avg IOPS: 2,574,027
+  SSD Hot Avg Bandwidth: 10.16 GB/s
+  SSD Hot Avg IOPS: 2,663,877
+===================================
+Recall @ 10: 0.908420
+
+============================================================
+FlashANNS Sweep: num_blocks=432 pipe_width=2
+============================================================
+
+TID: 1490877 5
+TID: 1490876 3
+TID: 1490879 9
+TID: 1490878 7
+========== FlashANNS Result ==========
+Query Params:
+  topk=10 ef_search=45 repeat=20 data_type=uint8
+Runtime Params:
+  batch=432 pipe_width=2 poll_threads=6 spdk_task_contexts=1024 poll_submit_batch_size=256
+
+Performance:
+  QPS: 60499.67
+  BatchLatency(ms): avg=7.140 p50=7.045 p90=7.597 p99=7.863 p99.9=18.408 max=18.408
+  SSD Avg Bandwidth: 11.18 GB/s
+  SSD Avg IOPS: 2,929,656
+  SSD Hot Avg Bandwidth: 11.82 GB/s
+  SSD Hot Avg IOPS: 3,098,745
+===================================
+Recall @ 10: 0.908240
+
+============================================================
+FlashANNS Sweep: num_blocks=540 pipe_width=2
+============================================================
+
+TID: 1491090 9
+TID: 1491089 7
+TID: 1491088 5
+TID: 1491087 3
+========== FlashANNS Result ==========
+Query Params:
+  topk=10 ef_search=45 repeat=20 data_type=uint8
+Runtime Params:
+  batch=540 pipe_width=2 poll_threads=6 spdk_task_contexts=1024 poll_submit_batch_size=256
+
+Performance:
+  QPS: 65773.49
+  BatchLatency(ms): avg=8.196 p50=8.128 p90=8.611 p99=8.866 p99.9=19.044 max=19.044
+  SSD Avg Bandwidth: 12.15 GB/s
+  SSD Avg IOPS: 3,185,110
+  SSD Hot Avg Bandwidth: 12.40 GB/s
+  SSD Hot Avg IOPS: 3,249,905
+===================================
+Recall @ 10: 0.908210
+
+============================================================
+FlashANNS Sweep: num_blocks=648 pipe_width=2
+============================================================
+
+TID: 1491206 9
+TID: 1491204 5
+TID: 1491205 7
+TID: 1491203 3
+========== FlashANNS Result ==========
+Query Params:
+  topk=10 ef_search=45 repeat=20 data_type=uint8
+Runtime Params:
+  batch=648 pipe_width=2 poll_threads=6 spdk_task_contexts=1024 poll_submit_batch_size=256
+
+Performance:
+  QPS: 53962.51
+  BatchLatency(ms): avg=11.994 p50=12.393 p90=13.067 p99=13.716 p99.9=24.784 max=24.784
+  SSD Avg Bandwidth: 9.97 GB/s
+  SSD Avg IOPS: 2,612,818
+  SSD Hot Avg Bandwidth: 12.64 GB/s
+  SSD Hot Avg IOPS: 3,313,536
+===================================
+Recall @ 10: 0.908050
+
+============================================================
+FlashANNS Sweep: num_blocks=756 pipe_width=2
+============================================================
+
+TID: 1491405 9
+TID: 1491404 7
+TID: 1491402 3
+TID: 1491403 5
+========== FlashANNS Result ==========
+Query Params:
+  topk=10 ef_search=45 repeat=20 data_type=uint8
+Runtime Params:
+  batch=756 pipe_width=2 poll_threads=6 spdk_task_contexts=1024 poll_submit_batch_size=256
+
+Performance:
+  QPS: 50395.26
+  BatchLatency(ms): avg=14.976 p50=15.551 p90=16.322 p99=17.093 p99.9=22.795 max=22.795
+  SSD Avg Bandwidth: 9.31 GB/s
+  SSD Avg IOPS: 2,440,063
+  SSD Hot Avg Bandwidth: 12.04 GB/s
+  SSD Hot Avg IOPS: 3,157,020
+===================================
+Recall @ 10: 0.908260
+
+============================================================
+FlashANNS Sweep: num_blocks=864 pipe_width=2
+============================================================
+
+TID: 1491556 9
+TID: 1491554 5
+TID: 1491553 3
+TID: 1491555 7
+========== FlashANNS Result ==========
+Query Params:
+  topk=10 ef_search=45 repeat=20 data_type=uint8
+Runtime Params:
+  batch=864 pipe_width=2 poll_threads=6 spdk_task_contexts=1024 poll_submit_batch_size=256
+
+Performance:
+  QPS: 47196.47
+  BatchLatency(ms): avg=18.266 p50=18.190 p90=19.113 p99=20.434 p99.9=28.859 max=28.859
+  SSD Avg Bandwidth: 8.72 GB/s
+  SSD Avg IOPS: 2,285,209
+  SSD Hot Avg Bandwidth: 9.12 GB/s
+  SSD Hot Avg IOPS: 2,391,551
+===================================
+Recall @ 10: 0.908330
+
+============================================================
+FlashANNS Sweep: num_blocks=972 pipe_width=2
+============================================================
+
+TID: 1491768 9
+TID: 1491767 7
+TID: 1491766 5
+TID: 1491765 3
+========== FlashANNS Result ==========
+Query Params:
+  topk=10 ef_search=45 repeat=20 data_type=uint8
+Runtime Params:
+  batch=972 pipe_width=2 poll_threads=6 spdk_task_contexts=1024 poll_submit_batch_size=256
+
+Performance:
+  QPS: 61683.90
+  BatchLatency(ms): avg=15.739 p50=15.699 p90=16.127 p99=16.746 p99.9=24.487 max=24.487
+  SSD Avg Bandwidth: 11.39 GB/s
+  SSD Avg IOPS: 2,986,941
+  SSD Hot Avg Bandwidth: 11.72 GB/s
+  SSD Hot Avg IOPS: 3,072,535
+===================================
+Recall @ 10: 0.908360
+
+============================================================
+FlashANNS Sweep: num_blocks=1080 pipe_width=2
+============================================================
+
+TID: 1491910 9
+TID: 1491908 5
+TID: 1491909 7
+TID: 1491907 3
+========== FlashANNS Result ==========
+Query Params:
+  topk=10 ef_search=45 repeat=20 data_type=uint8
+Runtime Params:
+  batch=1080 pipe_width=2 poll_threads=6 spdk_task_contexts=1024 poll_submit_batch_size=256
+
+Performance:
+  QPS: 67931.09
+  BatchLatency(ms): avg=15.829 p50=15.763 p90=16.348 p99=16.675 p99.9=27.493 max=27.493
+  SSD Avg Bandwidth: 12.55 GB/s
+  SSD Avg IOPS: 3,289,539
+  SSD Hot Avg Bandwidth: 12.96 GB/s
+  SSD Hot Avg IOPS: 3,396,278
+===================================
+Recall @ 10: 0.908260

@@ -1,0 +1,49 @@
+dataset=sift1b
+AE_SCALE=1b
+CUDA_VISIBLE_DEVICES=3
+SPDK_BASE_LBA=83886080
+QUIVER_SPDK_BLOCK_OFFSET=0
+ssd_list=/mnt/nvme12/wpq-ae/home/quiver-ae/ae/.cache/ssd_list_4.txt
+PCI_1SSD=0000:ac:00.0
+BIN_DIR=/mnt/nvme12/wpq-ae/home/quiver-ae/build-ae
+cmd: /mnt/nvme12/wpq-ae/home/quiver-ae/build-ae/bin/flashanns_search --index-dir /mnt/nvme12/wpq-ae/index/sift1b-R128-QD32/ --query /mnt/nvme12/wpq-ae/dataset/sift1b/query.u8bin --ground-truth /mnt/nvme12/wpq-ae/dataset/sift1b/gt.ibin --data-type uint8 --topk 10 --ef-search 45 --repeat 20 --pipe-width 2 --poll-threads 6 --ssd-list-file /mnt/nvme12/wpq-ae/home/quiver-ae/ae/.cache/ssd_list_4.txt --num-blocks 756
+EAL: '-c <coremask>' option is deprecated, and will be removed in a future release
+EAL: 	Use '-l <corelist>' or '--lcores=<corelist>' option instead
+TID: 1577730 5
+TID: 1577732 9
+TID: 1577731 7
+TID: 1577729 3
+========== FlashANNS Result ==========
+Query Params:
+  topk=10 ef_search=45 repeat=20 data_type=uint8
+Runtime Params:
+  batch=756 pipe_width=2 poll_threads=6 spdk_task_contexts=1024 poll_submit_batch_size=256
+
+Performance:
+  QPS: 60955.37
+  BatchLatency(ms): avg=12.347 p50=12.275 p90=12.801 p99=13.316 p99.9=15.866 max=15.866
+  SSD Avg Bandwidth: 11.26 GB/s
+  SSD Avg IOPS: 2,951,642
+  SSD Hot Avg Bandwidth: 11.45 GB/s
+  SSD Hot Avg IOPS: 3,001,679
+===================================
+
+========== Light Breakdown Samples: FlashANNS ==========
+  Metric                      count       avg_us       p50_us       p90_us       p99_us       max_us
+  ---------------------- ---------- ------------ ------------ ------------ ------------ ------------
+  Compute                        20      2609.30      2614.42      3088.12      3438.99      3438.99
+  IO wait                        20      8810.07      8969.42      9589.84     11150.70     11150.70
+  Resume                         20       791.07       704.55      1007.88      1131.68      1131.68
+  Scheduling gap                 20         0.00         0.00         0.00         0.00         0.00
+  Other                          20         0.00         0.00         0.00         0.00         0.00
+  kernel launch                  20        13.80         3.10         6.91       216.96       216.96
+  H2D                            20        24.81        24.08        25.03        46.97        46.97
+  D2H                            20        28.74        27.89        33.14        43.15        43.15
+  Breakdown total                20     12277.79     12343.46     13750.94     16028.45     16028.45
+  CTA window                     20      1000.00      1000.00      1000.00      1000.00      1000.00
+  CTA active                     20       511.19       486.40       734.78       758.78       758.78
+  CTA pure IO wait               20       488.81       514.05       632.38       709.18       709.18
+  CTA active %                   20        51.12        48.64        73.48        75.88        75.88
+=============================================
+
+Recall @ 10: 0.908330

@@ -1,0 +1,417 @@
+dataset=sift1b
+fusionanns_index=/mnt/nvme12/wpq-ae/index/fusionanns-sift100m
+cmd: env CUDA_VISIBLE_DEVICES=3 /mnt/nvme12/wpq-ae/home/quiver-ae/third-party/fusionanns/bin/query_server --query /mnt/nvme12/wpq-ae/dataset/sift100m/query.public.10K.u8bin --query-format u8bin --groundtruth /mnt/nvme12/wpq-ae/dataset/sift100m/groundtruth.100m.ibin --groundtruth-format bin --index-path /mnt/nvme12/wpq-ae/index/fusionanns-sift100m --topk 10 --recall_k 10 --nprobe 1024 --rerank_size 256 --queries 10000 --batch_size 32 --threads 128 --sweep_threads 4\,16\,64\,128\,256 --sweep_nprobe 256\,512\,1024 --sweep_rerank 128\,256 --warmup 0 --repeat 1 --io_backend io_uring --cache_mb 0 --summary_csv /mnt/nvme12/wpq-ae/home/quiver-ae/.cache/ae-staging/run.1488828/fusion/fusionanns_sift100m_summary.csv --disable-query-stats --no-use-cagra --no-gpu-topk
+[1] Using AVX512 InstructionSet!
+--- FusionANNS Online Query Server ---
+  [cuVS] GPU TopK: disabled (libcuvs not linked)
+  [cuVS] CAGRA centroid graph: disabled (libcuvs not linked)
+[1/4] Loading index components...
+  > Centroid navigator loaded from "/mnt/nvme12/wpq-ae/index/fusionanns-sift100m/proximity_graph_index"
+  > IOManager backend: io_uring (depth 512, flags=SQPOLL, Direct I/O: ON)
+  > PQ codec: /mnt/nvme12/wpq-ae/index/fusionanns-sift100m/pq_codec (d=128)
+  > PQ codes: /mnt/nvme12/wpq-ae/index/fusionanns-sift100m/pq_codes
+  > Raw vectors: uint8
+  > Posting lists: 9998091 lists covering 729149849 postings (/mnt/nvme12/wpq-ae/index/fusionanns-sift100m/posting_lists_metadata)
+  > All index components loaded.
+
+[2/4] Initializing GPU...
+  > PQ codes bytes: 1.49012 GiB
+  > GPU free/total: 39.0806/39.4935 GiB
+  > Copied PQ codes to GPU.
+
+[3/4] Loading query data and ground truth...
+  > Loaded 10000 queries (d=128) and ground truth (100 per query).
+
+[4/4] Performing search with re-ranking...
+
+-- Running benchmark: threads=4 nprobe=256 rerank_size=128 --
+  > Initializing GPU block pool with C_max=28005...
+  > Allocating GPU memory for block pool...
+    - Block size: 1.41748 MiB
+    - Block count: 21722
+    - Total pool size: 30.0689 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 4 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=4 nprobe=256 rerank=128 -> qps_eff=113.31, qps_wall=453.07, avg=8.83ms, p50=8.95ms, p90=9.63ms, p99=10.53ms, inflight≈4.00, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.89614
+
+-- Running benchmark: threads=16 nprobe=256 rerank_size=128 --
+  > Initializing GPU block pool with C_max=28005...
+  > Allocating GPU memory for block pool...
+    - Block size: 1.41748 MiB
+    - Block count: 21722
+    - Total pool size: 30.0689 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 16 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=16 nprobe=256 rerank=128 -> qps_eff=110.19, qps_wall=1760.99, avg=9.08ms, p50=9.19ms, p90=9.65ms, p99=10.33ms, inflight≈15.98, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.89614
+
+-- Running benchmark: threads=64 nprobe=256 rerank_size=128 --
+  > Initializing GPU block pool with C_max=28005...
+  > Allocating GPU memory for block pool...
+    - Block size: 1.41748 MiB
+    - Block count: 21719
+    - Total pool size: 30.0647 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 64 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=64 nprobe=256 rerank=128 -> qps_eff=93.59, qps_wall=5951.54, avg=10.68ms, p50=10.68ms, p90=11.25ms, p99=12.30ms, inflight≈63.59, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.89614
+
+-- Running benchmark: threads=128 nprobe=256 rerank_size=128 --
+  > Initializing GPU block pool with C_max=28005...
+  > Allocating GPU memory for block pool...
+    - Block size: 1.41748 MiB
+    - Block count: 21710
+    - Total pool size: 30.0522 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 128 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=128 nprobe=256 rerank=128 -> qps_eff=57.53, qps_wall=7291.44, avg=17.38ms, p50=17.21ms, p90=18.68ms, p99=21.56ms, inflight≈126.74, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.89614
+
+-- Running benchmark: threads=256 nprobe=256 rerank_size=128 --
+  > Initializing GPU block pool with C_max=28005...
+  > Allocating GPU memory for block pool...
+    - Block size: 1.41748 MiB
+    - Block count: 21699
+    - Total pool size: 30.037 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 256 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=256 nprobe=256 rerank=128 -> qps_eff=44.84, qps_wall=11184.54, avg=22.30ms, p50=20.34ms, p90=22.30ms, p99=169.97ms, inflight≈249.43, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.89614
+
+-- Running benchmark: threads=4 nprobe=256 rerank_size=256 --
+  > Initializing GPU block pool with C_max=28005...
+  > Allocating GPU memory for block pool...
+    - Block size: 1.41748 MiB
+    - Block count: 21677
+    - Total pool size: 30.0066 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 4 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=4 nprobe=256 rerank=256 -> qps_eff=62.82, qps_wall=251.22, avg=15.92ms, p50=16.22ms, p90=17.91ms, p99=18.84ms, inflight≈4.00, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.92545
+
+-- Running benchmark: threads=16 nprobe=256 rerank_size=256 --
+  > Initializing GPU block pool with C_max=28005...
+  > Allocating GPU memory for block pool...
+    - Block size: 1.41748 MiB
+    - Block count: 21677
+    - Total pool size: 30.0066 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 16 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=16 nprobe=256 rerank=256 -> qps_eff=59.09, qps_wall=944.22, avg=16.92ms, p50=17.36ms, p90=18.75ms, p99=19.85ms, inflight≈15.98, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.92545
+
+-- Running benchmark: threads=64 nprobe=256 rerank_size=256 --
+  > Initializing GPU block pool with C_max=28005...
+  > Allocating GPU memory for block pool...
+    - Block size: 1.41748 MiB
+    - Block count: 21677
+    - Total pool size: 30.0066 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 64 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=64 nprobe=256 rerank=256 -> qps_eff=51.42, qps_wall=3273.25, avg=19.45ms, p50=20.00ms, p90=21.46ms, p99=22.72ms, inflight≈63.65, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.92545
+
+-- Running benchmark: threads=128 nprobe=256 rerank_size=256 --
+  > Initializing GPU block pool with C_max=28005...
+  > Allocating GPU memory for block pool...
+    - Block size: 1.41748 MiB
+    - Block count: 21677
+    - Total pool size: 30.0066 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 128 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=128 nprobe=256 rerank=256 -> qps_eff=30.25, qps_wall=3846.08, avg=33.05ms, p50=33.42ms, p90=36.22ms, p99=68.15ms, inflight≈127.13, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.92545
+
+-- Running benchmark: threads=256 nprobe=256 rerank_size=256 --
+  > Initializing GPU block pool with C_max=28005...
+  > Allocating GPU memory for block pool...
+    - Block size: 1.41748 MiB
+    - Block count: 21677
+    - Total pool size: 30.0066 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 256 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=256 nprobe=256 rerank=256 -> qps_eff=26.10, qps_wall=6573.48, avg=38.31ms, p50=39.52ms, p90=42.38ms, p99=44.39ms, inflight≈251.86, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.92545
+
+-- Running benchmark: threads=4 nprobe=512 rerank_size=128 --
+  > Initializing GPU block pool with C_max=56010...
+  > Allocating GPU memory for block pool...
+    - Block size: 2.81323 MiB
+    - Block count: 10922
+    - Total pool size: 30.006 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 4 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=4 nprobe=512 rerank=128 -> qps_eff=106.17, qps_wall=424.51, avg=9.42ms, p50=9.57ms, p90=10.24ms, p99=10.94ms, inflight≈4.00, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.92091
+
+-- Running benchmark: threads=16 nprobe=512 rerank_size=128 --
+  > Initializing GPU block pool with C_max=56010...
+  > Allocating GPU memory for block pool...
+    - Block size: 2.81323 MiB
+    - Block count: 10922
+    - Total pool size: 30.006 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 16 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=16 nprobe=512 rerank=128 -> qps_eff=102.28, qps_wall=1634.69, avg=9.78ms, p50=9.90ms, p90=10.50ms, p99=11.20ms, inflight≈15.98, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.92091
+
+-- Running benchmark: threads=64 nprobe=512 rerank_size=128 --
+  > Initializing GPU block pool with C_max=56010...
+  > Allocating GPU memory for block pool...
+    - Block size: 2.81323 MiB
+    - Block count: 10922
+    - Total pool size: 30.006 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 64 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=64 nprobe=512 rerank=128 -> qps_eff=87.69, qps_wall=5571.36, avg=11.40ms, p50=11.50ms, p90=12.27ms, p99=13.09ms, inflight≈63.53, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.92091
+
+-- Running benchmark: threads=128 nprobe=512 rerank_size=128 --
+  > Initializing GPU block pool with C_max=56010...
+  > Allocating GPU memory for block pool...
+    - Block size: 2.81323 MiB
+    - Block count: 10922
+    - Total pool size: 30.006 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 128 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=128 nprobe=512 rerank=128 -> qps_eff=56.47, qps_wall=7139.61, avg=17.71ms, p50=17.87ms, p90=19.08ms, p99=20.47ms, inflight≈126.43, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.92091
+
+-- Running benchmark: threads=256 nprobe=512 rerank_size=128 --
+  > Initializing GPU block pool with C_max=56010...
+  > Allocating GPU memory for block pool...
+    - Block size: 2.81323 MiB
+    - Block count: 10922
+    - Total pool size: 30.006 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 256 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=256 nprobe=512 rerank=128 -> qps_eff=47.08, qps_wall=11635.86, avg=21.24ms, p50=20.96ms, p90=22.87ms, p99=43.11ms, inflight≈247.13, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.92091
+
+-- Running benchmark: threads=4 nprobe=512 rerank_size=256 --
+  > Initializing GPU block pool with C_max=56010...
+  > Allocating GPU memory for block pool...
+    - Block size: 2.81323 MiB
+    - Block count: 10922
+    - Total pool size: 30.006 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 4 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=4 nprobe=512 rerank=256 -> qps_eff=60.04, qps_wall=240.03, avg=16.66ms, p50=17.01ms, p90=18.66ms, p99=19.50ms, inflight≈4.00, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.95526
+
+-- Running benchmark: threads=16 nprobe=512 rerank_size=256 --
+  > Initializing GPU block pool with C_max=56010...
+  > Allocating GPU memory for block pool...
+    - Block size: 2.81323 MiB
+    - Block count: 10922
+    - Total pool size: 30.006 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 16 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=16 nprobe=512 rerank=256 -> qps_eff=57.30, qps_wall=915.58, avg=17.45ms, p50=17.92ms, p90=19.23ms, p99=20.14ms, inflight≈15.98, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.95526
+
+-- Running benchmark: threads=64 nprobe=512 rerank_size=256 --
+  > Initializing GPU block pool with C_max=56010...
+  > Allocating GPU memory for block pool...
+    - Block size: 2.81323 MiB
+    - Block count: 10922
+    - Total pool size: 30.006 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 64 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=64 nprobe=512 rerank=256 -> qps_eff=49.26, qps_wall=3139.23, avg=20.30ms, p50=20.78ms, p90=22.39ms, p99=23.67ms, inflight≈63.73, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.95526
+
+-- Running benchmark: threads=128 nprobe=512 rerank_size=256 --
+  > Initializing GPU block pool with C_max=56010...
+  > Allocating GPU memory for block pool...
+    - Block size: 2.81323 MiB
+    - Block count: 10922
+    - Total pool size: 30.006 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 128 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=128 nprobe=512 rerank=256 -> qps_eff=29.97, qps_wall=3813.06, avg=33.37ms, p50=34.22ms, p90=36.95ms, p99=38.70ms, inflight≈127.23, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.95526
+
+-- Running benchmark: threads=256 nprobe=512 rerank_size=256 --
+  > Initializing GPU block pool with C_max=56010...
+  > Allocating GPU memory for block pool...
+    - Block size: 2.81323 MiB
+    - Block count: 10922
+    - Total pool size: 30.006 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 256 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=256 nprobe=512 rerank=256 -> qps_eff=25.66, qps_wall=6486.36, avg=38.97ms, p50=39.98ms, p90=43.08ms, p99=45.89ms, inflight≈252.79, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.95526
+
+-- Running benchmark: threads=4 nprobe=1024 rerank_size=128 --
+  > Initializing GPU block pool with C_max=112019...
+  > Allocating GPU memory for block pool...
+    - Block size: 5.60547 MiB
+    - Block count: 5481
+    - Total pool size: 30.0035 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 4 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=4 nprobe=1024 rerank=128 -> qps_eff=93.46, qps_wall=373.72, avg=10.70ms, p50=10.88ms, p90=11.68ms, p99=12.43ms, inflight≈4.00, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.93008
+
+-- Running benchmark: threads=16 nprobe=1024 rerank_size=128 --
+  > Initializing GPU block pool with C_max=112019...
+  > Allocating GPU memory for block pool...
+    - Block size: 5.60547 MiB
+    - Block count: 5481
+    - Total pool size: 30.0035 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 16 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=16 nprobe=1024 rerank=128 -> qps_eff=89.40, qps_wall=1428.87, avg=11.19ms, p50=11.31ms, p90=12.15ms, p99=13.00ms, inflight≈15.98, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.93008
+
+-- Running benchmark: threads=64 nprobe=1024 rerank_size=128 --
+  > Initializing GPU block pool with C_max=112019...
+  > Allocating GPU memory for block pool...
+    - Block size: 5.60547 MiB
+    - Block count: 5481
+    - Total pool size: 30.0035 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 64 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=64 nprobe=1024 rerank=128 -> qps_eff=74.88, qps_wall=4771.50, avg=13.36ms, p50=13.40ms, p90=14.67ms, p99=15.93ms, inflight≈63.72, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.93008
+
+-- Running benchmark: threads=128 nprobe=1024 rerank_size=128 --
+  > Initializing GPU block pool with C_max=112019...
+  > Allocating GPU memory for block pool...
+    - Block size: 5.60547 MiB
+    - Block count: 5481
+    - Total pool size: 30.0035 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 128 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=128 nprobe=1024 rerank=128 -> qps_eff=55.67, qps_wall=7070.50, avg=17.96ms, p50=18.01ms, p90=19.72ms, p99=21.76ms, inflight≈127.02, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.93008
+
+-- Running benchmark: threads=256 nprobe=1024 rerank_size=128 --
+  > Initializing GPU block pool with C_max=112019...
+  > Allocating GPU memory for block pool...
+    - Block size: 5.60547 MiB
+    - Block count: 5481
+    - Total pool size: 30.0035 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 256 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=256 nprobe=1024 rerank=128 -> qps_eff=40.62, qps_wall=10133.44, avg=24.62ms, p50=23.37ms, p90=29.41ms, p99=66.60ms, inflight≈249.46, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.93008
+
+-- Running benchmark: threads=4 nprobe=1024 rerank_size=256 --
+  > Initializing GPU block pool with C_max=112019...
+  > Allocating GPU memory for block pool...
+    - Block size: 5.60547 MiB
+    - Block count: 5481
+    - Total pool size: 30.0035 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 4 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=4 nprobe=1024 rerank=256 -> qps_eff=55.41, qps_wall=221.56, avg=18.05ms, p50=18.42ms, p90=20.21ms, p99=21.39ms, inflight≈4.00, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.96673
+
+-- Running benchmark: threads=16 nprobe=1024 rerank_size=256 --
+  > Initializing GPU block pool with C_max=112019...
+  > Allocating GPU memory for block pool...
+    - Block size: 5.60547 MiB
+    - Block count: 5481
+    - Total pool size: 30.0035 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 16 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=16 nprobe=1024 rerank=256 -> qps_eff=52.79, qps_wall=843.67, avg=18.94ms, p50=19.34ms, p90=20.98ms, p99=22.20ms, inflight≈15.98, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.96673
+
+-- Running benchmark: threads=64 nprobe=1024 rerank_size=256 --
+  > Initializing GPU block pool with C_max=112019...
+  > Allocating GPU memory for block pool...
+    - Block size: 5.60547 MiB
+    - Block count: 5481
+    - Total pool size: 30.0035 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 64 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=64 nprobe=1024 rerank=256 -> qps_eff=45.18, qps_wall=2878.25, avg=22.14ms, p50=22.53ms, p90=24.38ms, p99=25.86ms, inflight≈63.71, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.96673
+
+-- Running benchmark: threads=128 nprobe=1024 rerank_size=256 --
+  > Initializing GPU block pool with C_max=112019...
+  > Allocating GPU memory for block pool...
+    - Block size: 5.60547 MiB
+    - Block count: 5481
+    - Total pool size: 30.0035 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 128 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=128 nprobe=1024 rerank=256 -> qps_eff=29.60, qps_wall=3764.66, avg=33.79ms, p50=34.50ms, p90=37.34ms, p99=39.57ms, inflight≈127.20, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.96673
+
+-- Running benchmark: threads=256 nprobe=1024 rerank_size=256 --
+  > Initializing GPU block pool with C_max=112019...
+  > Allocating GPU memory for block pool...
+    - Block size: 5.60547 MiB
+    - Block count: 5481
+    - Total pool size: 30.0035 GiB
+  > GPU memory allocated successfully.
+  > GPU block pool initialized successfully.
+  > Using 256 worker threads for benchmarking.
+  > Running warmup with 0 queries...
+  > Warmup completed.
+  threads=256 nprobe=1024 rerank=256 -> qps_eff=25.18, qps_wall=6355.96, avg=39.71ms, p50=40.42ms, p90=44.08ms, p99=48.95ms, inflight≈252.40, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.96673
+
+Best qps_eff configuration: threads=4 nprobe=256 rerank=128 => qps_eff=113.31, qps_wall=453.07, avg=8.83ms, inflight≈4.00, miss_rate(avg/p90)=1.000/1.000, Recall@10=0.89614
