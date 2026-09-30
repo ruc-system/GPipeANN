@@ -10,6 +10,27 @@ source "${DIR}/paper_knobs.sh"
 apply_paper_knobs
 want="${1:-all}"
 
+# Set AE_RUN_ID to keep a reviewer's results separate. Reusing an explicit ID
+# across selected-figure invocations collects those figures into one run.
+AE_RUN_ID="${AE_RUN_ID:-}"
+export AE_RUN_ID
+result_root="${ROOT}/ae/results"
+if [[ -n "${AE_RUN_ID}" ]]; then
+  if [[ ! "${AE_RUN_ID}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ || ${#AE_RUN_ID} -gt 64 ]]; then
+    echo "ERROR: invalid AE_RUN_ID: ${AE_RUN_ID}" >&2
+    echo "Use 1-64 characters (letters, digits, '.', '_' or '-'); start with a letter or digit." >&2
+    echo "Example: AE_RUN_ID=reviewer1-20260930 ./ae/scripts/run_all.sh ${want}" >&2
+    exit 1
+  fi
+  result_root="${ROOT}/ae/results/runs/${AE_RUN_ID}"
+  if [[ -L "${result_root}" ]]; then
+    echo "ERROR: the run directory is a symbolic link and cannot be used safely:" >&2
+    echo "  ${result_root}" >&2
+    echo "Choose a different AE_RUN_ID or contact the authors." >&2
+    exit 1
+  fi
+fi
+
 ALL_FIGS=(latency_qps io_latency e2e fusion ablation q_sensitivity)
 declare -A PAPER_FIGURE=(
   [latency_qps]=1 [io_latency]=3 [e2e]=5
@@ -28,6 +49,21 @@ if [[ "${#selected[@]}" -eq 0 ]]; then
   exit 1
 fi
 
+# Explicit run IDs are immutable per figure. This permits assembling a run by
+# invoking different selected figures with the same ID, but prevents an
+# accidental rerun from destroying that ID's existing result.
+if [[ -n "${AE_RUN_ID}" && -z "${AE_DEBUG_ROOT:-}" ]]; then
+  for name in "${selected[@]}"; do
+    if [[ -e "${result_root}/${name}" ]]; then
+      echo "ERROR: run '${AE_RUN_ID}' already contains results for '${name}'." >&2
+      echo "Existing results were not changed: ${result_root}/${name}" >&2
+      echo "Choose a new ID to rerun it, for example:" >&2
+      echo "  AE_RUN_ID=${AE_RUN_ID}-rerun ./ae/scripts/run_all.sh ${want}" >&2
+      exit 1
+    fi
+  done
+fi
+
 total="${#selected[@]}"
 started="$(date +%s)"
 stage_root=""
@@ -41,12 +77,16 @@ else
   stage_root="${ROOT}/.cache/ae-staging/run.$$"
   mkdir -p "${stage_root}"
   trap 'rm -rf "${stage_root}"' EXIT
+  mkdir -p "${result_root}"
+  if [[ -n "${AE_RUN_ID}" ]]; then
+    echo "run id: ${AE_RUN_ID}"
+    echo "results: ${result_root}"
+  fi
 fi
 
 publish_result() {
   local name="$1"
   local incoming="${stage_root}/${name}"
-  local result_root="${ROOT}/ae/results"
   local final="${result_root}/${name}"
   local backup="${result_root}/.${name}.previous.$$"
 
@@ -55,6 +95,14 @@ publish_result() {
     return 1
   }
   mkdir -p "${result_root}"
+  # Recheck at publication time in case another invocation using the same ID
+  # passed the preflight check concurrently while this experiment was running.
+  if [[ -n "${AE_RUN_ID}" && -e "${final}" ]]; then
+    echo "ERROR: another run published '${name}' under AE_RUN_ID=${AE_RUN_ID}." >&2
+    echo "Existing results were not changed: ${final}" >&2
+    echo "Rerun with a new AE_RUN_ID." >&2
+    return 1
+  fi
   rm -rf "${backup}"
   if [[ -e "${final}" ]]; then
     mv "${final}" "${backup}"
@@ -86,4 +134,11 @@ done
 
 echo
 echo "All ${total} experiment(s) finished in $(( ($(date +%s) - started) / 60 )) min."
-echo "Next: ${DIR}/plot_all.py"
+if [[ -n "${AE_DEBUG_ROOT:-}" ]]; then
+  echo "Next: ${DIR}/plot_all.py ${AE_DEBUG_ROOT}"
+elif [[ -n "${AE_RUN_ID}" ]]; then
+  echo "Results: ${result_root}"
+  echo "Next: ${DIR}/plot_all.py ${result_root}"
+else
+  echo "Next: ${DIR}/plot_all.py"
+fi

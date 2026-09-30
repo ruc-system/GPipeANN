@@ -31,6 +31,7 @@ AE_SCALE="${AE_SCALE:-1b}"
 # unset and keeps the existing staging/publish behavior.
 AE_DEBUG_ROOT="${AE_DEBUG_ROOT:-}"
 AE_DEBUG_FORCE="${AE_DEBUG_FORCE:-0}"
+AE_RUN_ID="${AE_RUN_ID:-}"
 
 GPU_ID="${GPU_ID:-0}"
 
@@ -276,6 +277,7 @@ use_dataset() {
 
 prepare_out() {
   local fig="$1"
+  local isolated_run=0
   if [[ -z "${fig}" || "${fig}" == *"/"* || "${fig}" == "." || "${fig}" == ".." || "${fig}" == "Pre-executed-logs" ]]; then
     echo "refusing output directory: ${fig}" >&2
     exit 1
@@ -288,7 +290,28 @@ prepare_out() {
     local run_id="${AE_DEBUG_RUN_ID:-$(date +%Y%m%d_%H%M%S)_$$}"
     OUT="${output_root}/${fig}/runs/${run_id}"
   else
+    if [[ -z "${AE_OUTPUT_ROOT:-}" && -n "${AE_RUN_ID}" ]]; then
+      if [[ ! "${AE_RUN_ID}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ || ${#AE_RUN_ID} -gt 64 ]]; then
+        echo "ERROR: invalid AE_RUN_ID: ${AE_RUN_ID}" >&2
+        echo "Use 1-64 characters (letters, digits, '.', '_' or '-'); start with a letter or digit." >&2
+        exit 1
+      fi
+      output_root="${AE_DIR}/results/runs/${AE_RUN_ID}"
+      if [[ -L "${output_root}" ]]; then
+        echo "ERROR: the run directory is a symbolic link and cannot be used safely:" >&2
+        echo "  ${output_root}" >&2
+        echo "Choose a different AE_RUN_ID or contact the authors." >&2
+        exit 1
+      fi
+      isolated_run=1
+    fi
     OUT="${output_root}/${fig}"
+    if [[ "${isolated_run}" -eq 1 && -e "${OUT}" ]]; then
+      echo "ERROR: run '${AE_RUN_ID}' already contains results for '${fig}'." >&2
+      echo "Existing results were not changed: ${OUT}" >&2
+      echo "Choose a new AE_RUN_ID to rerun this experiment." >&2
+      exit 1
+    fi
     rm -rf "${OUT}"
   fi
   mkdir -p "${OUT}"
@@ -296,6 +319,7 @@ prepare_out() {
     echo "AE_SCALE=${AE_SCALE}"
     echo "AE_DEBUG_ROOT=${AE_DEBUG_ROOT}"
     echo "AE_DEBUG_RUN_ID=${AE_DEBUG_RUN_ID:-}"
+    echo "AE_RUN_ID=${AE_RUN_ID}"
     echo "BIN_DIR=${BIN_DIR}"
     echo "PCI_4SSD=${PCI_4SSD:-}"
     echo "PCI_SIFT_1SSD=${PCI_SIFT_1SSD:-}"

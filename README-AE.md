@@ -127,33 +127,39 @@ The scripts reproduce all six paper figures at once, or one figure at a time.
 **#1: Reproduce all figures.**
 
 ```bash
-./ae/scripts/run_all.sh
+AE_RUN_ID=reviewer1-20260930 ./ae/scripts/run_all.sh
 ```
 
-This command takes approximately 4 hours at billion scale. Rerunning an experiment replaces its directory in `ae/results/`.
+This command takes approximately 90 minutes at billion scale on the provided
+server. Choose a unique run ID, such as your reviewer label followed by the
+date. Raw results are saved under `ae/results/runs/<run-id>/`, so reviewers do
+not replace one another's results. Existing results under the same run ID are
+not overwritten; use a new ID when rerunning an experiment.
 
 **#2: Reproduce selected figures.** Pass a name from the table below:
 
 ```bash
-./ae/scripts/run_all.sh <name>
+AE_RUN_ID=reviewer1-20260930 ./ae/scripts/run_all.sh <name>
 ```
 
-| Figure | Name | Time (h) |
-|--------|------|----------|
-| 1 | `latency_qps` | 0.5 |
-| 3 | `io_latency` | 0.5 |
-| 5 | `e2e` | 1.0 |
-| 6 | `fusion` | 1.0 |
-| 7 | `ablation` | 0.5 |
-| 8 | `q_sensitivity` | 0.5 |
+| Figure | Name | Time (min) |
+|--------|------|------------|
+| 1 | `latency_qps` | 5 |
+| 3 | `io_latency` | 1 |
+| 5 | `e2e` | 27 |
+| 6 | `fusion` | 31 |
+| 7 | `ablation` | 10 |
+| 8 | `q_sensitivity` | 10 |
 
 ### Plot all figures
 
-Plot every completed figure with:
+Plot every completed figure from that run with:
 
 ```bash
-./ae/scripts/plot_all.py
+./ae/scripts/plot_all.py ae/results/runs/reviewer1-20260930
 ```
+
+The generated PDFs are saved under `ae/figures/runs/<run-id>/`.
 
 To generate all six figures directly from the bundled pre-executed logs, without rerunning the experiments, use:
 
@@ -161,7 +167,8 @@ To generate all six figures directly from the bundled pre-executed logs, without
 ./ae/scripts/plot_all.py ae/results/Pre-executed-logs
 ```
 
-Each PDF is saved in `ae/figures/`. The number is the paper figure, and the suffix is the name in the table above.
+PDFs generated from the pre-executed logs are saved in `ae/figures/`. The
+number is the paper figure, and the suffix is the name in the table above.
 
 <img src="readme-img/fig-list.jpg" alt="PDFs written by plot_all.py" width="500">
 

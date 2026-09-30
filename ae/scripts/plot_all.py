@@ -1092,8 +1092,11 @@ def main() -> int:
         Path(__file__).resolve().parent.parent / "results",
         help="result root (defaults to AE_DEBUG_ROOT or ae/results)",
     )
-    ap.add_argument("-o", "--out-dir", type=Path,
-                    default=Path(__file__).resolve().parent.parent / "figures")
+    ap.add_argument(
+        "-o", "--out-dir", type=Path,
+        help=("PDF destination (defaults to ae/figures/runs/<run-id> for an "
+              "isolated run, otherwise ae/figures)"),
+    )
     ap.add_argument("--mode", choices=("paper", "full"), default="paper")
     ap.add_argument("--quiver-grid", type=Path,
                     help="overlay a Q=1..4 Quiver grid on matching e2e panels")
@@ -1104,6 +1107,15 @@ def main() -> int:
         help="keep the submitted layouts but draw only the current reduced data",
     )
     args = ap.parse_args()
+
+    ae_dir = Path(__file__).resolve().parent.parent
+    if args.out_dir is None:
+        src = args.src.resolve()
+        runs_root = (ae_dir / "results" / "runs").resolve()
+        if src.parent == runs_root:
+            args.out_dir = ae_dir / "figures" / "runs" / src.name
+        else:
+            args.out_dir = ae_dir / "figures"
 
     if not args.src.exists():
         print(f"missing {args.src}", file=sys.stderr)
