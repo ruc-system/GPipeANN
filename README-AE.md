@@ -2,6 +2,13 @@
 
 Welcome to the artifact repository of the ATC'26 accepted paper: *Quiver: Taming the Throughput-Latency Tradeoff in GPU-SSD ANNS*!
 
+The Quiver artifact is licensed under the [Apache License 2.0](LICENSE).
+Bundled third-party components retain their respective licenses; see
+[NOTICE](NOTICE) and their accompanying license files.
+
+The permanent public archive of this artifact is available from Zenodo at
+[doi:10.5281/zenodo.23074357](https://doi.org/10.5281/zenodo.23074357).
+
 Should there be any questions, please contact the authors in HotCRP. The authors will respond to each question within 24hrs and as soon as possible.
 
 ## Main Claims

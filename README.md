@@ -123,6 +123,12 @@ ids, distances = idx.search(queries, topk=10, ef_search=45)
 
 See the [Artifact Evaluation Guide](README-AE.md) for CUDA installation, index preparation, SPDK device binding, and full experiment reproduction.
 
+## License
+
+Quiver is licensed under the [Apache License 2.0](LICENSE). Bundled third-party
+components retain their respective licenses; see [NOTICE](NOTICE) and the
+license files shipped with those components.
+
 ## 📰 Updates
 
 - **Sep 24, 2026**: Initial release with billion-scale GPU-SSD search, C++ and Python interfaces, and SPDK and memory backends
@@ -132,6 +138,9 @@ See the [Artifact Evaluation Guide](README-AE.md) for CUDA installation, index p
 ## 📖 Citation
 
 If you use Quiver in your research, please cite our forthcoming ACM SIGOPS ATC '26 paper:
+
+The accompanying artifact is permanently archived on Zenodo at
+[doi:10.5281/zenodo.23074357](https://doi.org/10.5281/zenodo.23074357).
 
 ```bibtex
 @inproceedings{wu2026quiver,
