@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Paper Figure 6 — N=1 per family (PCI_SIFT_1SSD / PCI_DEEP_1SSD).
-# Quiver 1B occupancy sweep vs FusionANNS 100M. The plotter takes the Pareto
-# front of measured (P99, QPS) points and does not re-filter by Recall@10.
+# Quiver 1B occupancy sweep vs recall-calibrated FusionANNS 100M. The plotter
+# takes the Pareto front of measured (P99, QPS) points.
 set -euo pipefail
 DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "${DIR}/common.sh"
@@ -121,7 +121,7 @@ run_one() {
     require_file "${fusion_gt}"
     local fusion_qfmt
     fusion_qfmt="$(fusion_query_format "${fusion_query}")"
-    run_fusionanns_query "${OUT}/fusionanns_${fusion_dataset}_nprobe${FUSIONANNS_NPROBE}.log" \
+    run_fusionanns_query "${OUT}/fusionanns_${fusion_dataset}.log" \
       "${fusion_index}" \
       --query "${fusion_query}" \
       --query-format "${fusion_qfmt}" \

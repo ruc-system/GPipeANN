@@ -978,13 +978,14 @@ def fig_fusion(corpus: Corpus, out: Path) -> bool:
             expand_ylim_above_ticks(ax)
         if family == "deep":
             ax.set_ylim(0, 30000)
-        ps.panel_label(ax, f"{family.upper()}1B", "upper left")
+        ps.panel_label(ax, family.upper(), "upper left")
 
     if not drawn:
         plt.close(fig)
         return False
     handles, labels = complete_system_legend(("FusionANNS", "Quiver"))
-    ps.finish(
+    labels = ["FusionANNS (100M)", "Quiver (1B)"]
+    corpus.finish(
         fig, [list(axes)], out,
         xlabel="P99 Latency (ms)",
         ylabel="Throughput",

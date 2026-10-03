@@ -202,6 +202,8 @@ Verification:
 
 **Major Claim 2:** At matched Recall@10, Quiver outperforms the cluster-based GPU-SSD system FusionANNS in peak throughput and under P99 latency constraints.
 
+AE clarification: Figure 6 uses Quiver on SIFT/DEEP-1B and recall-calibrated FusionANNS configurations on SIFT/DEEP-100M because the FusionANNS 1B indexes were not ready within the preparation window; this mixed-scale AE comparison is distinct from the paper's 1B-vs-1B evaluation.
+
 Sub-claims:
 
 - On SIFT-1B and DEEP-1B (Figure 6), peak throughput is 3.4×–3.8× higher.

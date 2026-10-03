@@ -5,8 +5,10 @@ see every figure before running anything. They are used only when you point the
 plotter at this directory; a plain `./ae/scripts/plot_all.py` plots your own runs
 and skips the experiments you have not run.
 
-This snapshot is the 2026-09-23 AE-server run that produced the current PDFs in
-`ae/figures/`. One directory per experiment, holding the archived CSV layout:
+The base snapshot is the 2026-09-23 AE-server run. Figure 6 was refreshed on
+2026-10-03 after the A9 recall calibration and includes a complete Quiver-1B
+and FusionANNS-100M rerun. One directory per experiment holds the archived CSV
+layout:
 
 ```
 Pre-executed-logs/
