@@ -223,7 +223,10 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
             if (tid == 0)
                 s_ready_w = (*(volatile int32_t*)&my_ctl[0].status == IO_READY) ? 0 : -1;
             __syncthreads();
-            if (s_ready_w == 0) break;
+            // Finish consuming this poll before thread 0 publishes another.
+            const int boot_ready = s_ready_w;
+            __syncthreads();
+            if (boot_ready == 0) break;
 #ifdef QUIVER_LIGHT_BREAKDOWN
             if (tid == 0 && breakdown_trace != nullptr &&
                 breakdown_wait_start_ns == 0)

@@ -193,7 +193,7 @@ def load_tree(root: Path) -> list[Point]:
 
 
 def _completed_group(directory: Path) -> bool:
-    """Ignore retained failed debug attempts; reviewer CSVs have no manifest."""
+    """Read completed points from complete/partial groups, not failed attempts."""
     manifest = directory / "manifest.env"
     if not manifest.is_file():
         return True
@@ -202,7 +202,7 @@ def _completed_group(directory: Path) -> bool:
         key, sep, value = line.partition("=")
         if sep:
             values[key] = value
-    return values.get("status") == "complete"
+    return values.get("status") in ("complete", "partial")
 
 
 def _dedupe(points: list[Point]) -> list[Point]:

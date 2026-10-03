@@ -75,6 +75,16 @@ class Corpus:
         self.root = root
         self.phase_debug = phase_debug
 
+    def finish(self, fig, axes, out, **kwargs):
+        partial = self.root is not None and any(
+            path.stat().st_size for path in self.root.rglob("failed_points.tsv"))
+        if self.root is not None and (self.root / "status.env").is_file():
+            partial |= (self.root / "status.env").read_text().strip() != "status=complete"
+        if partial:
+            kwargs["top_pad"] = kwargs.get("top_pad", 0.0) + 0.18
+            kwargs["note"] = "Partial run: failed points omitted"
+        ps.finish(fig, axes, out, **kwargs)
+
     def select(self, system: str, dataset: str, ef: int,
                restrict_q: bool = False) -> list[Point]:
         """Sweep points for one (system, dataset, ef).
@@ -315,7 +325,7 @@ def fig_latency_qps(corpus: Corpus, out: Path) -> bool:
     handles, labels = complete_system_legend(
         ("GustANN", "FlashANNS", "Quiver")
     )
-    ps.finish(
+    corpus.finish(
         fig, [[ax]], out,
         xlabel="P99 Latency (ms)",
         ylabel="Throughput",
@@ -383,7 +393,7 @@ def fig_e2e(corpus: Corpus, out: Path) -> bool:
     handles, labels = complete_system_legend(
         ("FlashANNS", "GustANN", "Quiver")
     )
-    ps.finish(
+    corpus.finish(
         fig, axes, out,
         xlabel=["P99 Latency (ms)" if stat == "p99" else "AVG Latency (ms)"
                 for _bucket, stat in cols],
@@ -519,7 +529,7 @@ def fig_ablation(corpus: Corpus, out: Path) -> bool:
         borderaxespad=0.0, handlelength=1.25,
         handletextpad=0.35, labelspacing=0.15,
     )
-    ps.finish(
+    corpus.finish(
         fig, [list(axes)], out,
         xlabel=["Recall@10", ""],
         ylabel=["Throughput", ""],
@@ -693,7 +703,7 @@ def fig_q_sensitivity(corpus: Corpus, out: Path) -> bool:
         if marker is not None:
             handle.set_marker(marker)
     prefix = Line2D([], [], linestyle="none", marker=None, color="none")
-    ps.finish(
+    corpus.finish(
         fig, [list(axes)], out,
         xlabel="Q",
         ylabel=["Throughput", "Utilization"],
@@ -861,7 +871,7 @@ def fig_io_latency(corpus: Corpus, out: Path) -> bool:
     axes[2].yaxis.tick_right()
     axes[2].yaxis.set_label_position("right")
     axes[2].set_ylabel("CDF", rotation=270, labelpad=8)
-    ps.finish(
+    corpus.finish(
         fig, [list(axes)], out,
         xlabel=["", "Per-hop I/O\nstall time (ms)",
                 "Per-hop computing\ntime (µs)"],
@@ -1128,6 +1138,11 @@ def main() -> int:
         if source is None:
             print(f"skip Figure {number} ({name}): missing result directory")
             continue
+        failures = list(source.rglob("failed_points.tsv"))
+        for failure in failures:
+            if failure.stat().st_size:
+                print(f"WARNING: Figure {number} is partial; skipped points: {failure}",
+                      file=sys.stderr)
         points = load_tree(source)
         if args.phase_debug and name == "ablation":
             e2e_source = source.parent / "e2e"
@@ -1163,7 +1178,13 @@ def main() -> int:
             points, args.mode, grid_points, source, args.phase_debug
         )
         pdf = args.out_dir / f"figure{number}_{name}.pdf"
-        if fn(figure_corpus, pdf):
+        try:
+            plotted = fn(figure_corpus, pdf)
+        except Exception as exc:
+            print(f"WARNING: Figure {number} could not be drawn: {exc}", file=sys.stderr)
+            plt.close("all")
+            continue
+        if plotted:
             print(f"paper Figure {number} ({name}) -> {pdf}")
             n += 1
         else:

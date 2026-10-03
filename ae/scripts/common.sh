@@ -774,10 +774,55 @@ run_search() {
   csv_dir="$(cd -- "$(dirname -- "${csv_log}")" && pwd)"
   local stem
   stem="$(basename "${log}" .log)"
-  local retries="${HANG_RETRIES:-2}"
+  # Retry both watchdog timeouts and process failures (for example, a CUDA
+  # fault). Keep HANG_RETRIES as a backward-compatible fallback.
+  local retries="${SEARCH_RETRIES:-${HANG_RETRIES:-2}}"
+  [[ "${retries}" =~ ^[0-9]+$ ]] || { echo "invalid SEARCH_RETRIES" >&2; return 2; }
+  local -a original=("$@") pending=() current=() completed=()
+  local axis="" list_index=-1 inline_list=0 value="" arg j
+  local single_axis="" single_value=single
+  for ((j=0; j<${#original[@]}; ++j)); do
+    arg="${original[j]}"
+    case "${arg}" in
+      --num-blocks-list|--mini-batch-list)
+        list_index=$((j+1)); value="${original[j+1]}"
+        axis="${arg#--}"; axis="${axis%-list}"; axis="${axis//-/_}" ;;
+      --num-blocks-list=*|--mini-batch-list=*)
+        list_index=${j}; inline_list=1; value="${arg#*=}"
+        axis="${arg%%=*}"; axis="${axis#--}"; axis="${axis%-list}"; axis="${axis//-/_}" ;;
+      --num-blocks|--mini-batch)
+        single_axis="${arg#--}"; single_axis="${single_axis//-/_}"
+        single_value="${original[j+1]}" ;;
+      --num-blocks=*|--mini-batch=*)
+        single_axis="${arg%%=*}"; single_axis="${single_axis#--}"; single_axis="${single_axis//-/_}"
+        single_value="${arg#*=}" ;;
+    esac
+  done
+  if (( list_index >= 0 )); then
+    IFS=, read -r -a pending <<< "${value}"
+  else
+    axis="${single_axis}"
+    pending=("${single_value}")
+  fi
+  local expected_total=${#pending[@]} skipped=0 sequence=0 count remaining joined kept
+  local history="${log}.attempts" snapshot="${log}.csv-state"
+  local -a recovery_flags=()
+  : > "${history}"
   local attempt=0
   local rc=0
-  while true; do
+  while (( ${#pending[@]} > 0 )); do
+    current=("${original[@]}")
+    if (( list_index >= 0 )); then
+      joined="$(IFS=,; echo "${pending[*]}")"
+      if (( inline_list )); then
+        current[list_index]="${original[list_index]%%=*}=${joined}"
+      else
+        current[list_index]="${joined}"
+      fi
+    fi
+    remaining=${#pending[@]}
+    sequence=$((sequence+1))
+    python3 "${AE_SCRIPTS_DIR}/recover_search_csv.py" snapshot "${csv_dir}" "${snapshot}" || return $?
     {
       echo "dataset=${DATASET:-}"
       echo "AE_SCALE=${AE_SCALE}"
@@ -788,7 +833,7 @@ run_search() {
       echo "PCI_1SSD=${PCI_1SSD:-}"
       echo "BIN_DIR=${BIN_DIR}"
       printf 'cmd:'
-      printf ' %q' "$@"
+      printf ' %q' "${current[@]}"
       printf '\n'
     } | tee "${log}"
     sudo -n stdbuf -oL -eL env \
@@ -809,43 +854,63 @@ run_search() {
       QUIVER_AE_TARGET_RECALL="${QUIVER_AE_TARGET_RECALL:-}" \
       QUIVER_AE_VARIANT="${QUIVER_AE_VARIANT:-}" \
       ${AE_NUMA_PREFIX} \
-      "$@" >> "${log}" 2>&1 &
+      "${current[@]}" >> "${log}" 2>&1 &
     local pid=$!
     rc=0
     ae_watch_search "${log}" "${pid}" || rc=$?
     ae_strip_ansi_log "${log}"
-    if [[ "${rc}" -eq 0 ]]; then
+    count="$(grep -c 'Recall @' "${log}" || true)"
+    count="${count:-0}"
+    (( count <= remaining )) || { echo "unexpected result count in ${log}" >&2; return 1; }
+    if (( count > 0 )); then
+      completed+=("${pending[@]:0:count}")
+      pending=("${pending[@]:count}")
+      attempt=0
+    fi
+    kept="$(IFS=,; echo "${completed[*]}")"
+    recovery_flags=()
+    (( count == remaining )) && recovery_flags=(--all-done)
+    python3 "${AE_SCRIPTS_DIR}/recover_search_csv.py" recover "${csv_dir}" "${snapshot}" \
+      --stem "${stem}" --axis "${axis}" --completed "${kept}" "${recovery_flags[@]}" || return $?
+    cat "${log}" >> "${history}"
+    if (( count == remaining )); then
+      if (( rc != 0 )); then
+        printf '%s\tteardown\t%s\n' "${stem}" "${rc}" >> "${csv_dir}/search_warnings.tsv"
+      fi
       break
     fi
-    if [[ "${rc}" -eq 124 && "${attempt}" -lt "${retries}" ]]; then
+    # A zero exit without every Recall report is still an incomplete point.
+    (( rc != 0 )) || rc=65
+    cp -- "${log}" "${log}.failed${sequence}.rc${rc}" || return $?
+    if [[ "${attempt}" -lt "${retries}" ]]; then
       attempt=$((attempt + 1))
-      echo "timeout: killed hung point, retry ${attempt}/${retries} after 5s  log=${log}" | tee -a "${log}"
-      cp -- "${log}" "${log}.hang${attempt}" 2>/dev/null || true
-      ae_drop_stem_rows "${csv_dir}" "${stem}"
-      sleep 5
+      local failure_kind="exit ${rc}"
+      [[ "${rc}" -eq 124 ]] && failure_kind="watchdog timeout"
+      echo "${failure_kind}: retry ${attempt}/${retries} after 5s  log=${log}" | tee -a "${log}"
+      sleep "${SEARCH_RETRY_DELAY:-5}"
       continue
     fi
-    if [[ -n "${group_dir}" ]]; then
-      {
-        echo "status=failed"
-        echo "signature=${signature}"
-        echo "expected_points=${expected}"
-        echo "exit_code=${rc}"
-      } > "${group_dir}/manifest.env"
-    fi
-    echo "search failed rc=${rc} log=${log}" >&2
-    return "${rc}"
+    printf '%s\t%s\t%s\t%s\t%s\n' "${stem}" "${axis:-point}" \
+      "${pending[0]}" "${rc}" "$((attempt+1))" >> "${csv_dir}/failed_points.tsv"
+    echo "WARNING: skipping ${stem} ${axis:-point}=${pending[0]} after $((attempt+1)) failed attempts; continuing." >&2
+    skipped=$((skipped+1))
+    pending=("${pending[@]:1}")
+    attempt=0
   done
+  mv -- "${history}" "${log}"
+  rm -f -- "${snapshot}"
+  expected=$((expected_total-skipped))
   if [[ -n "${group_dir}" ]]; then
-    if ! ae_validate_metrics "${group_dir}/metrics.csv" \
+    if (( expected > 0 )) && ! ae_validate_metrics "${group_dir}/metrics.csv" \
          "$(basename "${log}" .log)" "${expected}"; then
       echo "incomplete sweep group: ${group_dir} (expected ${expected} valid points)" >&2
       return 1
     fi
     {
-      echo "status=complete"
+      if (( skipped )); then echo "status=partial"; else echo "status=complete"; fi
       echo "signature=${signature}"
       echo "expected_points=${expected}"
+      echo "skipped_points=${skipped}"
       echo "log_path=${log}"
       echo "completed_at=$(date -Iseconds)"
     } > "${group_dir}/manifest.env"

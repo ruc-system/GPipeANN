@@ -76,7 +76,8 @@ if [[ -n "${AE_DEBUG_ROOT:-}" ]]; then
 else
   stage_root="${ROOT}/.cache/ae-staging/run.$$"
   mkdir -p "${stage_root}"
-  trap 'rm -rf "${stage_root}"' EXIT
+  # Never delete unpublished results, including on publication/plot failures.
+  trap 'if [[ -d "${stage_root}" ]]; then rmdir "${stage_root}" 2>/dev/null || echo "Unpublished results retained: ${stage_root}" >&2; fi' EXIT
   mkdir -p "${result_root}"
   if [[ -n "${AE_RUN_ID}" ]]; then
     echo "run id: ${AE_RUN_ID}"
@@ -86,6 +87,7 @@ fi
 
 publish_result() {
   local name="$1"
+  local status="${2:-complete}"
   local incoming="${stage_root}/${name}"
   local final="${result_root}/${name}"
   local backup="${result_root}/.${name}.previous.$$"
@@ -94,7 +96,8 @@ publish_result() {
     echo "incomplete staged result: ${incoming}" >&2
     return 1
   }
-  mkdir -p "${result_root}"
+  printf 'status=%s\n' "${status}" > "${incoming}/status.env" || return 1
+  mkdir -p "${result_root}" || return 1
   # Recheck at publication time in case another invocation using the same ID
   # passed the preflight check concurrently while this experiment was running.
   if [[ -n "${AE_RUN_ID}" && -e "${final}" ]]; then
@@ -103,9 +106,12 @@ publish_result() {
     echo "Rerun with a new AE_RUN_ID." >&2
     return 1
   fi
-  rm -rf "${backup}"
+  if [[ -e "${backup}" ]]; then
+    echo "existing result backup retained: ${backup}" >&2
+    return 1
+  fi
   if [[ -e "${final}" ]]; then
-    mv "${final}" "${backup}"
+    mv "${final}" "${backup}" || return 1
   fi
   if mv "${incoming}" "${final}"; then
     rm -rf "${backup}"
@@ -116,6 +122,7 @@ publish_result() {
   return 1
 }
 
+failures=()
 i=0
 for name in "${selected[@]}"; do
   i=$((i + 1))
@@ -123,22 +130,79 @@ for name in "${selected[@]}"; do
   echo "===== [${i}/${total}] ${name} -> paper Figure ${PAPER_FIGURE[${name}]} (AE_SCALE=${AE_SCALE:-1b}) ====="
   step_started="$(date +%s)"
   if [[ -n "${AE_DEBUG_ROOT:-}" ]]; then
-    "${DIR}/fig_${name}.sh"
-    echo "kept debug attempt under ${AE_DEBUG_ROOT}/${name}/runs/${AE_DEBUG_RUN_ID}"
+    if "${DIR}/fig_${name}.sh"; then
+      echo "kept debug attempt under ${AE_DEBUG_ROOT}/${name}/runs/${AE_DEBUG_RUN_ID}"
+      if find "${AE_DEBUG_ROOT}/${name}/runs/${AE_DEBUG_RUN_ID}" -name failed_points.tsv -type f -size +0c -print -quit | grep -q .; then
+        failures+=("${name}:skipped-points")
+      fi
+    else
+      rc=$?
+      failures+=("${name}:rc=${rc}")
+      echo "WARNING: ${name} failed rc=${rc}; debug history was kept; continuing." >&2
+    fi
   else
-    AE_OUTPUT_ROOT="${stage_root}" "${DIR}/fig_${name}.sh"
-    publish_result "${name}"
+    if AE_OUTPUT_ROOT="${stage_root}" "${DIR}/fig_${name}.sh"; then
+      status=complete
+      if find "${stage_root}/${name}" -name failed_points.tsv -type f -size +0c -print -quit | grep -q .; then
+        status=partial
+        failures+=("${name}:skipped-points")
+      fi
+      if ! publish_result "${name}" "${status}"; then
+        failures+=("${name}:publish-failed")
+        echo "WARNING: could not publish ${name}; retained ${stage_root}/${name}; continuing." >&2
+      fi
+    else
+      rc=$?
+      failures+=("${name}:rc=${rc}")
+      if [[ -d "${stage_root}/${name}" ]]; then
+        {
+          echo "figure=${name}"
+          echo "exit_code=${rc}"
+          echo "failed_at=$(date -Iseconds)"
+        } > "${stage_root}/${name}/failure.env" || echo "WARNING: could not write failure metadata for ${name}; retaining data." >&2
+        if publish_result "${name}" failed; then
+          echo "WARNING: published partial ${name} results and continuing." >&2
+        else
+          echo "WARNING: could not publish partial ${name} results; continuing." >&2
+        fi
+      else
+        echo "WARNING: ${name} failed before creating a result directory; continuing." >&2
+      fi
+    fi
   fi
   echo "----- ${name} done in $(( ($(date +%s) - step_started) / 60 )) min -----"
 done
 
 echo
 echo "All ${total} experiment(s) finished in $(( ($(date +%s) - started) / 60 )) min."
-if [[ -n "${AE_DEBUG_ROOT:-}" ]]; then
-  echo "Next: ${DIR}/plot_all.py ${AE_DEBUG_ROOT}"
-elif [[ -n "${AE_RUN_ID}" ]]; then
+if [[ -n "${AE_RUN_ID}" ]]; then
   echo "Results: ${result_root}"
-  echo "Next: ${DIR}/plot_all.py ${result_root}"
-else
-  echo "Next: ${DIR}/plot_all.py"
+fi
+echo "Generating plots from successful results..."
+
+# Plot only the selected figures from this invocation. A plotting error must
+# not prevent the other figures from being rendered, or delete their results.
+for name in "${selected[@]}"; do
+  source_dir="${result_root}/${name}"
+  plot_root="${ROOT}/ae/figures"
+  [[ -z "${AE_RUN_ID}" ]] || plot_root+="/runs/${AE_RUN_ID}"
+  if [[ -n "${AE_DEBUG_ROOT:-}" ]]; then
+    source_dir="${AE_DEBUG_ROOT}/${name}/runs/${AE_DEBUG_RUN_ID}"
+    plot_root="${AE_DEBUG_ROOT}/figures/${AE_DEBUG_RUN_ID}"
+  elif [[ -d "${stage_root}/${name}" ]]; then
+    source_dir="${stage_root}/${name}"
+    # Keep plots next to unpublished data instead of overwriting another run.
+    plot_root="${stage_root}/plots"
+  fi
+  if [[ -d "${source_dir}" ]]; then
+    if ! python3 "${DIR}/plot_all.py" "${source_dir}" -o "${plot_root}"; then
+      failures+=("${name}:plot-failed-or-empty")
+      echo "WARNING: no complete plot for ${name}; data retained; continuing." >&2
+    fi
+  fi
+done
+
+if [[ "${#failures[@]}" -gt 0 ]]; then
+  echo "WARNING: run finished with omissions/errors: ${failures[*]}" >&2
+  exit 1
 fi

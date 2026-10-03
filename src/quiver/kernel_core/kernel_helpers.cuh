@@ -246,7 +246,14 @@ __device__ void persistent_merge_data(
     int tid = threadIdx.x;
     if (node_id == -1) return;
 
-    int sz = ctx->size;
+    // Only lane 0 mutates ctx->size. Publish one ef-bounded frontier length
+    // so every warp uses the same merge extent. The workspace has only
+    // ef + max_m entries; an unbounded pre-compact size cannot be used here.
+    // Finish consuming this broadcast before the scratch is reused below.
+    if (tid == 0) mv_pos[0] = min(ctx->size, ef_search);
+    __syncthreads();
+    int sz = mv_pos[0];
+    __syncthreads();
     int node_offset = node_id % nodes_per_page * node_size;
     uint8_t* node_base = buffer + node_offset;
     if (node_scratch != nullptr) {

@@ -345,6 +345,7 @@ def finish(
     bottom_pad: float = 0.0, xlabel_fontsize: float = 9,
     xlabel_down=None, ylabel_out=None, ylabel_side=None,
     subplot_gap: float | None = None,
+    note: str | None = None,
 ) -> None:
     """Place legends, shared labels, and panels, then write a vector PDF.
 
@@ -565,6 +566,10 @@ def finish(
         legend.set_bbox_to_anchor(
             (center, (height - OUTER) / height), transform=fig.transFigure
         )
+
+    if note:
+        fig.text(0.5, (top + 0.04) / height, note, ha="center", va="bottom",
+                 fontsize=7, color="#8F3333", transform=fig.transFigure)
 
     if shared_x and xlabel:
         fig.text(

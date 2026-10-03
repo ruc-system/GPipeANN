@@ -198,6 +198,9 @@ __global__ void persistent_search_kernel_qi(PersistentKernelArgs args)
     //     per kernel launch).
     // ============================================================
     auto try_bind_new_query = [&](int q) -> bool {
+        // The caller branches on s_slot_stage[q]. All warps must enter before
+        // the static-dispatch path changes that stage from EMPTY to BOOT_WAIT.
+        __syncthreads();
 #ifdef QUIVER_LATENCY_PROBE
         int64_t probe_t_sched_start = 0;
         if (tid == 0) probe_t_sched_start = globaltimer_ns();
@@ -520,7 +523,12 @@ __global__ void persistent_search_kernel_qi(PersistentKernelArgs args)
                 s_pick = (st == IO_READY) ? q : -1;
             }
             __syncthreads();
-            if (s_pick != q) return false;
+            // Consume the broadcast before warp 0 can poll the next slot and
+            // overwrite s_pick. A publication barrier alone does not protect
+            // slower warps still reading this slot's decision.
+            const int boot_pick = s_pick;
+            __syncthreads();
+            if (boot_pick != q) return false;
 
 #ifdef QUIVER_LIGHT_BREAKDOWN
             const int breakdown_qid = s_slot_qid[q];
@@ -694,12 +702,14 @@ __global__ void persistent_search_kernel_qi(PersistentKernelArgs args)
         }
         __syncthreads();
 
-        if (s_pick == -2) {
+        const int ready_pick = s_pick;
+        __syncthreads();
+        if (ready_pick == -2) {
             if (tid == 0) s_slot_stage[q] = 2;
             __syncthreads();
             return false;
         }
-        if (s_pick == -1) return false;
+        if (ready_pick == -1) return false;
 
 #ifdef QUIVER_LIGHT_BREAKDOWN
         const int breakdown_qid = s_slot_qid[q];
