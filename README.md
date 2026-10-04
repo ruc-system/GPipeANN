@@ -41,6 +41,16 @@ Quiver is suitable for both **high-throughput** and **latency-sensitive** billio
   <img src="readme-img/e2e.png" alt="Quiver end-to-end performance comparison on SIFT-1B and DEEP-1B" width="90%">
 </p>
 
+### Baseline provenance
+
+No official FlashANNS source release was publicly available to us. The
+FlashANNS source included in this repository is therefore an independent
+reimplementation by the Quiver authors based on the published paper, not an
+official implementation from the FlashANNS authors. This reimplementation is
+open source under the repository's Apache License 2.0. See the
+[FlashANNS baseline README](src/flashanns/README.md) for implementation details
+and configuration instructions.
+
 ---
 
 ## 🚀 Quick Start
