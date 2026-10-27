@@ -10,6 +10,8 @@ A low-latency, high-throughput, and billion-scale GPU-SSD vector search system.
   <a href="README-AE.md"><strong>ATC'26 Artifact Evaluation Guide</strong></a>
 </p>
 
+For development without SPDK, see the [memory backend tests](tests/memory/README.md), including host-only loader tests and GPU search correctness checks with synthetic indexes.
+
 ## ✨ Key Features
 
 | Feature | Description |
@@ -19,7 +21,7 @@ A low-latency, high-throughput, and billion-scale GPU-SSD vector search system.
 | 🌐&nbsp;**Billion-Scale&nbsp;Search** | Searches SIFT-1B and DEEP-1B on a single 40 GB GPU, with the billion-scale graph stored on NVMe SSDs |
 | 💾&nbsp;**Memory&nbsp;Efficient** | Keeps only 32 GB PQ codes in GPU memory instead of loading the full graph into GPU memory |
 | 🐍&nbsp;**Easy-to-Use** | Both Python (`NumPy`-native) and C++ interfaces are supported |
-| 🔌&nbsp;**Flexible&nbsp;Backends** | Use the SPDK backend for direct NVMe access, or the memory backend with `mmap` and `heap` loading modes |
+| 🔌&nbsp;**Flexible&nbsp;Backends** | Use SPDK for direct NVMe access, or the ordinary-file block backend for debugging |
 | 🗄️&nbsp;**Direct&nbsp;NVMe&nbsp;I/O** | SPDK-based userspace I/O supports direct access to one or multiple NVMe SSDs with page-level striping |
 
 > Results use Recall@10 = 0.90 on an NVIDIA A100 40 GB GPU with four NVMe SSDs.
@@ -106,7 +108,7 @@ SPDK_BASE_LBA=0 build/bin/quiver_search \
   --result-prefix /tmp/quiver-result
 ```
 
-The result IDs and distances are written to `/tmp/quiver-result_ids.bin` and `/tmp/quiver-result_distances.bin`. Omit `--ssd-list-file` to use the memory backend; select its loading mode with `--memory-backend mmap` or `--memory-backend heap`.
+The result IDs and distances are written to `/tmp/quiver-result_ids.bin` and `/tmp/quiver-result_distances.bin`. Omit `--ssd-list-file` to use the debug backend, which reads blocks from the ordinary index file through the same loader interface. There is no heap/mmap mode selector.
 
 ### 🐍 Python
 
@@ -129,7 +131,7 @@ idx = IndexQuiver(
 ids, distances = idx.search(queries, topk=10, ef_search=45)
 ```
 
-`queries` is a two-dimensional NumPy array. Pass PCI addresses directly through `ssds=[...]`, or use an existing `ssd_list_file`, to select the SPDK backend. Omit both options to use the memory backend with either `mmap` or `heap` mode.
+`queries` is a two-dimensional NumPy array. Pass PCI addresses directly through `ssds=[...]`, or use an existing `ssd_list_file`, to select the SPDK backend. Omit both options to read blocks from the ordinary index file for debugging. The `memory_backend` Python argument and `--memory-backend` CLI selector have been removed.
 
 See the [Artifact Evaluation Guide](README-AE.md) for CUDA installation, index preparation, SPDK device binding, and full experiment reproduction.
 

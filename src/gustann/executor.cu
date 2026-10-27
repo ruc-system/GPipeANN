@@ -628,7 +628,7 @@ HybridExecutor::HybridExecutor(const shared::Layout &layout,
 #endif
   } else if (config.use_backend == HybridExecutorConfig::MEMORY) {
     loader_ = shared::create_mem_loader_sync(
-        memory_fpath.c_str(), layout_.num_pages, config.memory_backend);
+        memory_fpath.c_str(), layout_.num_pages);
   } else {
     ERROR("Wrong IO Backend setting!");
     exit(-1);

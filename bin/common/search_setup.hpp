@@ -42,7 +42,6 @@ inline int fail_if_spdk_requested_without_support(const SharedCliArgs& args) {
 
 struct SearchSetup {
   std::string index_file;
-  shared::MemoryBackend memory_backend = shared::MemoryBackend::kHeap;
   std::string memory_index_file;
   shared::DataType data_type = shared::FLOAT;
   shared::Layout layout{};
@@ -74,13 +73,6 @@ inline SearchSetup prepare_search_setup(const SharedCliArgs& args) {
   SearchSetup setup;
   setup.data_type = parse_data_type(args.data_type);
   setup.index_file = find_index_file(args.index_dir);
-  const auto parsed_backend = shared::parse_memory_backend(args.memory_backend);
-  if (!parsed_backend.has_value()) {
-    ERROR("Unsupported --memory-backend '{}'. Expected one of: heap, mmap",
-          args.memory_backend);
-    std::exit(1);
-  }
-  setup.memory_backend = *parsed_backend;
   setup.memory_index_file =
       args.memory_index_file.empty() ? setup.index_file : args.memory_index_file;
   const std::string pq_prefix = find_pq_prefix(args.index_dir);

@@ -7,7 +7,6 @@
 #include <utility>
 #include <vector>
 
-#include "memory_backend.hpp"
 #include "runtime_stats.hpp"
 
 namespace shared {
@@ -61,7 +60,7 @@ class IndexLoader {
 
 std::shared_ptr<IndexLoader> create_mem_loader_sync(
     const char *filename, int64_t num_pages,
-    MemoryBackend backend = MemoryBackend::kHeap);
+    int64_t io_bytes = PAGE_SIZE);
 
 // FlashANNS baseline uses one SPDK runner per SSD. submit_queue_capacity is
 // the per-producer SPSC inbox depth; task_context_count tracks batches in

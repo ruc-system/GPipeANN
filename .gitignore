@@ -24,6 +24,7 @@ __pycache__/
 *.txt
 !src/shared/io/CMakeLists.txt
 !src/shared/io/spdk/CMakeLists.txt
+!tests/memory/CMakeLists.txt
 *.nsys-rep
 *.sqlite
 ssd_list.txt

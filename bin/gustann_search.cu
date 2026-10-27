@@ -126,7 +126,6 @@ int main(int argc, char** argv) {
                              ? gustann::HybridExecutorConfig::MEMORY
                              : gustann::HybridExecutorConfig::SPDK;
     config.ssd_lists = setup.ssd_lists;
-    config.memory_backend = setup.memory_backend;
     config.memory_index_file = setup.memory_index_file;
 
     gustann::HybridExecutor executor(setup.layout, setup.data_type,

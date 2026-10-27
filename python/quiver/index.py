@@ -41,7 +41,6 @@ class IndexQuiver:
         ssd_list_file: str | os.PathLike[str] | None = None,
         spdk_base_lba: int | None = None,
         binary: str | os.PathLike[str] | None = None,
-        memory_backend: str = "heap",
         num_blocks: int = 756,
         queries_per_block: int = 1,
         pipe_width: int = 2,
@@ -73,9 +72,6 @@ class IndexQuiver:
             raise ValueError("spdk_base_lba must be non-negative")
         self.spdk_base_lba = spdk_base_lba
 
-        if memory_backend not in {"heap", "mmap"}:
-            raise ValueError("memory_backend must be heap or mmap")
-        self.memory_backend = memory_backend
         self.binary = self._find_binary(binary)
         self.num_blocks = self._positive(num_blocks, "num_blocks")
         self.queries_per_block = self._positive(
@@ -156,8 +152,6 @@ class IndexQuiver:
                 str(self.poll_threads),
                 "--runners-per-ssd",
                 str(self.runners_per_ssd),
-                "--memory-backend",
-                self.memory_backend,
                 "--early-exit-policy",
                 early_exit_policy,
                 "--result-prefix",

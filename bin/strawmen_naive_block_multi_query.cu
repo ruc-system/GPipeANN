@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
     }
 
     auto loader = bin_common::create_index_loader(
-        setup.index_file, setup.layout.num_pages, setup.ssd_lists, run_nb,
+        setup.memory_index_file, setup.layout.num_pages, setup.ssd_lists, run_nb,
         poll_threads, pipe_width, queries_per_block);
     if (!loader) return 1;
 

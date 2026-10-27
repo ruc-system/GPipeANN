@@ -22,7 +22,6 @@ struct HybridExecutorConfig {
     MEMORY,
   } use_backend;
   std::vector<std::string> ssd_lists;
-  shared::MemoryBackend memory_backend = shared::MemoryBackend::kHeap;
   std::string memory_index_file;
 };
 

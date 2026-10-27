@@ -136,12 +136,10 @@ int main(int argc, char** argv) {
       return bin_common::fail_without_spdk_support();
 #endif
     } else {
-      spdlog::info("Using memory backend: {} index_file={}",
-                   shared::memory_backend_name(setup.memory_backend),
+      spdlog::info("Using debug file backend: index_file={}",
                    setup.memory_index_file);
       loader = shared::create_mem_loader_sync(
-          setup.memory_index_file.c_str(), setup.layout.num_pages,
-          setup.memory_backend);
+          setup.memory_index_file.c_str(), setup.layout.num_pages);
     }
     if (!loader) {
       return 1;

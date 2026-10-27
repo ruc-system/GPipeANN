@@ -19,6 +19,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # lean production-style builds.
 option(QUIVER_BUILD_STRAWMEN "Build strawman ablation binaries" ON)
 option(QUIVER_ENABLE_SPDK "Build SPDK-backed IO support" ON)
+option(QUIVER_BUILD_DISKANN_TOOLS "Build offline DiskANN index tools" ON)
 option(QUIVER_ENABLE_LIGHT_BREAKDOWN
        "Enable lightweight AE breakdown instrumentation" OFF)
 
@@ -32,7 +33,9 @@ find_package(OpenMP)
 
 add_subdirectory(deps/spdlog)
 add_subdirectory(deps/argparse)
-add_subdirectory(deps/DiskANN)
+if (QUIVER_BUILD_DISKANN_TOOLS)
+  add_subdirectory(deps/DiskANN)
+endif()
 if (TARGET build_memory_index)
   set_target_properties(build_memory_index PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")

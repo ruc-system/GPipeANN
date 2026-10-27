@@ -175,7 +175,7 @@ int main(int argc, char** argv) {
                 << std::endl;
 
       auto loader = bin_common::create_index_loader(
-          setup.index_file, setup.layout.num_pages, setup.ssd_lists, run_nb,
+          setup.memory_index_file, setup.layout.num_pages, setup.ssd_lists, run_nb,
           poll_threads, kPipeWidth, kQueriesPerBlock);
       if (!loader) {
         return 1;

@@ -17,7 +17,6 @@ struct SharedCliArgs {
   std::string ground_truth_file;
   std::string data_type;
   std::string ssd_list_file;
-  std::string memory_backend = "heap";
   std::string memory_index_file;
   int topk = 10;
   int ef_search = 30;
@@ -46,13 +45,9 @@ inline void register_shared_base_args(argparse::ArgumentParser& program,
   program.add_argument("--data-type").required().store_into(args.data_type);
   program.add_argument("--ef-search").store_into(args.ef_search);
   program.add_argument("--ssd-list-file").store_into(args.ssd_list_file);
-  program.add_argument("--memory-backend")
-      .default_value(std::string("heap"))
-      .store_into(args.memory_backend)
-      .help("Memory backend to use when --ssd-list-file is empty: heap or mmap.");
   program.add_argument("--memory-index-file")
       .store_into(args.memory_index_file)
-      .help("Index file used by memory backends; defaults to --index-dir discovery.");
+      .help("Ordinary index file for debug block reads; defaults to --index-dir discovery.");
   program.add_argument("--repeat").store_into(args.repeat);
 }
 

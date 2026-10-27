@@ -83,7 +83,7 @@ The main tuning parameters are:
 | `--pipe-width` | Maximum number of outstanding graph-page reads per query. The paper comparison uses 2. |
 | `--poll-threads` | Number of CPU threads polling I/O completion. The AE configuration uses 6. |
 | `--repeat` | Number of passes over the query set. The paper reproduction uses 20. |
-| `--ssd-list-file` | PCI addresses for the SPDK-backed SSDs. If omitted, select `--memory-backend heap` or `mmap`. |
+| `--ssd-list-file` | PCI addresses for the SPDK-backed SSDs. If omitted, read blocks from the ordinary index file for debugging. |
 
 Advanced SPDK queue sizing is exposed through `--spdk-submit-queue-cap`,
 `--spdk-task-contexts`, and `--spdk-runner-io-contexts`. Defaults are printed

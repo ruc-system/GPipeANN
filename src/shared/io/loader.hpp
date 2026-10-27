@@ -7,7 +7,6 @@
 #include <utility>
 #include <vector>
 
-#include "memory_backend.hpp"
 #include "runtime_stats.hpp"
 
 namespace shared {
@@ -42,7 +41,7 @@ class IndexLoader {
 
 std::shared_ptr<IndexLoader> create_mem_loader_sync(
     const char *filename, int64_t num_pages,
-    MemoryBackend backend = MemoryBackend::kHeap);
+    int64_t io_bytes = PAGE_SIZE);
 
 // submit_queue_capacity: per-producer SPSC inbox depth for each SSD runner.
 // task_context_count: compatibility slots for the legacy submit_task/poll_task
