@@ -1,0 +1,41 @@
+{
+  "paper_repository": "https://github.com/w-pq/GPipeANN-paper",
+  "harness_main": {
+    "repository": "https://github.com/w-pq/quiver-paper-harness",
+    "commit": "d17862d94e6efef45e8f4f5067967c735cc21721",
+    "paths": [
+      "plot-evaluation/",
+      "plot-motivation/",
+      "data/"
+    ],
+    "changes": "Paths resolve inside the bundle; preview output stays under build/; q-sens legend API supports Matplotlib 3.6."
+  },
+  "harness_12_page": {
+    "commit": "5a366da114f1a64482ce7c7a75bc3dedf76dc5f6",
+    "paths": [
+      "exps/plot_latency_qps.py",
+      "exps/plot_step_recall_cdf.py",
+      "exps/plot_early_exit_gpruning.py",
+      "exps/plot_flashanns_naive_block_multi_query.py",
+      "exps/plot_static_abalation.py"
+    ],
+    "destination": "historical-12-page/",
+    "changes": "Portable fonts and output paths; values unchanged."
+  },
+  "degree_data": {
+    "repository": "w-pq/quiver-backup",
+    "commit": "943a15a",
+    "path": "results/R-analysis/",
+    "destination": "data/degree/",
+    "note": "Recovered from the existing local bare clone; only plot-required CSVs, no hardware run."
+  },
+  "openai_zipf": {
+    "paper_commit": "06ffa2e260119fea52c24b8c74eebfb88030e78e",
+    "source_csv": "openai1m_zipf.csv",
+    "source_script": "plot_openai_zipf.py",
+    "helpers_from_code_commit": "65bc2d4447dc18dc847fa453f2db433e54533479",
+    "changes": "Bundle missing helper modules and split saved CSV by panel without changing any row."
+  },
+  "policy": "Paper input values are retained. Existing accepted PDFs are not overwritten. No performance experiment was run.",
+  "text_normalization": "Imported text uses LF line endings and no trailing whitespace; numeric values unchanged."
+}
