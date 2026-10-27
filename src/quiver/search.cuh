@@ -63,7 +63,8 @@ void run_persistent_search(
     int queries_per_block = 1,
     int repeat = 1,
     const PerStepRecallOptions& per_step_recall = {},
-    const EarlyExitOptions& early_exit = {});
+    const EarlyExitOptions& early_exit = {},
+    const int* query_efs = nullptr);
 
 // StaticDispatch (FlashANNS-style) batch search.
 // Launches ceil(num_queries / (num_blocks * Q)) kernel batches sequentially,

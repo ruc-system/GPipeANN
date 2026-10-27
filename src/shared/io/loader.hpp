@@ -50,6 +50,6 @@ std::shared_ptr<IndexLoader> create_mem_loader_sync(
 std::shared_ptr<IndexLoader> create_spdk_loader(
     const std::vector<std::string> &ssds, int submit_queue_capacity,
     int thread_cnt, int task_context_count, int runner_io_context_count,
-    int runners_per_ssd = 1);
+    int runners_per_ssd = 1, int64_t io_bytes = PAGE_SIZE);
 
 }  // namespace shared

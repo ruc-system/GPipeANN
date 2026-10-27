@@ -65,6 +65,6 @@ std::shared_ptr<IndexLoader> create_mem_loader_sync(
 // is ignored — behavior is unchanged from the single-runner-per-SSD model.
 std::shared_ptr<IndexLoader> create_spdk_loader(
     const std::vector<std::string> &ssds, int queue_cap, int thread_cnt,
-    int ctx_cnt, int runners_per_ssd = 1);
+    int ctx_cnt, int runners_per_ssd = 1, int64_t io_bytes = PAGE_SIZE);
 
 }  // namespace shared

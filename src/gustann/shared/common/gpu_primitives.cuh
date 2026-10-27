@@ -7,6 +7,13 @@
 
 namespace shared {
 
+__host__ __device__ inline int packed_node_byte_off(int node_id,
+                                                    int nodes_per_page,
+                                                    int node_len) {
+  const int npp = nodes_per_page > 1 ? nodes_per_page : 1;
+  return (node_id % npp) * node_len;
+}
+
 __inline__ __device__ float warp_reduce_sum(float val) {
 #if __CUDACC_VER_MAJOR__ >= 9
   unsigned int active = __activemask();
@@ -21,6 +28,15 @@ __inline__ __device__ float warp_reduce_sum(float val) {
   }
 #endif
   return val;
+}
+
+template <class T>
+__inline__ __device__ int disk_payload_dims(int query_dims, int payload_bytes) {
+  const int stored = payload_bytes / static_cast<int>(sizeof(T));
+  if (stored > 0 && stored < query_dims) {
+    return stored;
+  }
+  return query_dims;
 }
 
 template <class T>

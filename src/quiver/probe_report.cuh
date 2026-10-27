@@ -428,9 +428,25 @@ inline void print_end_to_end_io_breakdown(
 }
 
 inline void print_query_latency_breakdown(
-    const QuiverProbeQueryTrace*, int)
+    const QuiverProbeQueryTrace* traces, int count)
 {
-    printf("\n=== Per-Query Latency Breakdown disabled by default for hop probe ===\n\n");
+    std::vector<double> pq_init, boot_wait, finalize, total;
+    for (int i = 0; i < count; ++i) {
+        const auto& t = traces[i];
+        if (t.t_query_done <= t.t_query_start || t.t_query_start <= 0) continue;
+        auto append = [](std::vector<double>& out, int64_t begin, int64_t end) {
+            if (begin > 0 && end >= begin) out.push_back(ns_to_us(end - begin));
+        };
+        append(pq_init, t.t_nav_done, t.t_pq_done);
+        append(boot_wait, t.t_boot_issue, t.t_boot_ready);
+        append(finalize, t.t_pipe_done, t.t_query_done);
+        append(total, t.t_query_start, t.t_query_done);
+    }
+    printf("\n=== Quiver sampled query phases (us; overlapping queries, not additive wall time) ===\n");
+    print_metric_summary("PQInit", pq_init);
+    print_metric_summary("BootIOWait", boot_wait);
+    print_metric_summary("Finalize", finalize);
+    print_metric_summary("QueryTotal", total);
 }
 
 } // namespace quiver

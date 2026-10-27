@@ -181,6 +181,8 @@ static void cpu_poll_loop(
     int tid, int slot_start, int slot_end,
     IOControl* controls, uint8_t* buffers,
     int nodes_per_page,
+    int sectors_per_node,
+    int64_t io_bytes,
     std::shared_ptr<shared::IndexLoader> loader,
     int poll_submit_batch_size,
     std::atomic<bool>& done,
@@ -237,14 +239,16 @@ static void cpu_poll_loop(
                     continue;
 
                 local_found++;
-                int blk = controls[gi].node_id / nodes_per_page;
+                int blk = shared::node_first_page(controls[gi].node_id,
+                                                  nodes_per_page,
+                                                  sectors_per_node);
 #ifdef QUIVER_LATENCY_PROBE
                 volatile int64_t* sampled_complete_ns =
                     sample_io ? &complete_ns[i] : nullptr;
 #endif
                 req_buf.push_back({
                     blk,
-                    buffers + (int64_t)gi * shared::PAGE_SIZE,
+                    buffers + (int64_t)gi * io_bytes,
                     &controls[gi].status,
                     (int32_t)IO_READY
 #ifdef QUIVER_LATENCY_PROBE
@@ -375,7 +379,8 @@ void run_persistent_search(
     int queries_per_block,
     int repeat,
     const PerStepRecallOptions& per_step_recall,
-    const EarlyExitOptions& early_exit)
+    const EarlyExitOptions& early_exit,
+    const int* query_efs)
 {
 #ifdef QUIVER_FIXED_PIPE_WIDTH
     pipe_w = QUIVER_FIXED_PIPE_WIDTH;
@@ -386,6 +391,9 @@ void run_persistent_search(
     int num_dims       = (int)layout.num_dims;
     int max_m          = (int)layout.max_m0;
     int nodes_per_page = (int)layout.nodes_per_page;
+    int sectors_per_node = (int)layout.sectors_per_node;
+    int64_t io_bytes = layout.io_bytes > 0 ? layout.io_bytes
+                                           : shared::PAGE_SIZE;
     int node_size      = (int)layout.node_size;
     int data_size      = (int)layout.data_size;
     int aligned_ef     = (max_m + ef_search + 31) / 32 * 32;
@@ -432,9 +440,9 @@ void run_persistent_search(
     for (int i = 0; i < num_io_slots; i++) h_controls[i].status = IO_IDLE;
 
     uint8_t* h_buffers =
-        loader->create_buffer((int64_t)shared::PAGE_SIZE * num_io_slots);
+        loader->create_buffer(io_bytes * num_io_slots);
     CHECK_CUDA(cudaHostRegister(h_buffers,
-                                (size_t)shared::PAGE_SIZE * num_io_slots,
+                                (size_t)io_bytes * num_io_slots,
                                 cudaHostRegisterDefault));
 
     // ---- 3. Comm struct (pinned+mapped) ----
@@ -469,6 +477,7 @@ void run_persistent_search(
     int*      d_step_recall_hits = nullptr;
     int*      d_early_exit_stop_step = nullptr;
     int*      d_finish_step = nullptr;
+    int*      d_query_ef = nullptr;
     DarthCommSlot* h_darth_comm_slots = nullptr;
 
     CHECK_CUDA(cudaMalloc(&d_qdata, sizeof(float) * num_queries * num_dims));
@@ -488,6 +497,14 @@ void run_persistent_search(
     CHECK_CUDA(cudaMemset(d_finish_step, 0xff, sizeof(int) * num_queries));
     CHECK_CUDA(cudaMalloc(&d_early_exit_stop_step, sizeof(int) * num_queries));
     CHECK_CUDA(cudaMemset(d_early_exit_stop_step, 0xff, sizeof(int) * num_queries));
+    if (query_efs != nullptr) {
+        CHECK_CUDA(cudaMalloc(&d_query_ef, sizeof(int) * num_queries));
+        CHECK_CUDA(cudaMemcpy(d_query_ef, query_efs,
+                              sizeof(int) * num_queries,
+                              cudaMemcpyHostToDevice));
+        INFO("Per-query ef enabled for {} queries (allocation ef={})",
+             num_queries, ef_search);
+    }
 
     if (per_step_recall.enabled()) {
         if (Q != 1 || pipe_w != 1) {
@@ -571,11 +588,13 @@ void run_persistent_search(
     args.compressed_data  = pq->device_data.compressed_data;
     args.pq_block_offset  = 0;
     args.nodes_per_page   = nodes_per_page;
+    args.io_bytes         = (int)io_bytes;
     args.node_size        = node_size;
     args.data_size        = data_size;
     args.num_dims         = num_dims;
     args.max_m            = max_m;
     args.ef_search        = ef_search;
+    args.d_query_ef       = d_query_ef;
     args.aligned_ef       = aligned_ef;
     args.topk             = topk;
     args.pipe_w           = pipe_w;
@@ -688,7 +707,7 @@ void run_persistent_search(
             shared::bind_core(t * 2 + 21);
             cpu_poll_loop(t, s0, s1,
                           h_controls, h_buffers,
-                          nodes_per_page, loader,
+                          nodes_per_page, sectors_per_node, io_bytes, loader,
                           poll_submit_batch_size,
                           poll_done,
 #ifdef QUIVER_LATENCY_PROBE
@@ -862,6 +881,8 @@ void run_persistent_search(
         h2d_range_submit(begin, end, /*sync_block=*/true);
     };
 
+    const bool phase_timing = std::getenv("QUIVER_PHASE_TIMING") != nullptr;
+    double phase_done90 = 0, phase_done99 = 0;
     // t0: user-visible start — initial batch of queries arrives at CPU.
     // Every subsequent feed records its own arrival timestamp (see host loop).
     // H2D + Nav for the initial batch are part of their processing and are
@@ -899,22 +920,38 @@ void run_persistent_search(
     if (Q <= 1) {
         // Q=1 fast path: original single-query-per-block kernel
         // Phase 3.1a: kernel now templated on Dispatch policy.
-        if (data_type == shared::UINT8)
+        if (d_query_ef != nullptr) {
+            if (data_type == shared::UINT8)
+                persistent_search_kernel<StreamingDispatch, uint8_t, true><<<num_blocks, 128, smem, kernel_stream>>>(args);
+            else if (data_type == shared::INT8)
+                persistent_search_kernel<StreamingDispatch, int8_t, true><<<num_blocks, 128, smem, kernel_stream>>>(args);
+            else
+                persistent_search_kernel<StreamingDispatch, float, true><<<num_blocks, 128, smem, kernel_stream>>>(args);
+        } else if (data_type == shared::UINT8) {
             persistent_search_kernel<StreamingDispatch, uint8_t><<<num_blocks, 128, smem, kernel_stream>>>(args);
-        else if (data_type == shared::INT8)
+        } else if (data_type == shared::INT8) {
             persistent_search_kernel<StreamingDispatch, int8_t><<<num_blocks, 128, smem, kernel_stream>>>(args);
-        else
+        } else {
             persistent_search_kernel<StreamingDispatch, float><<<num_blocks, 128, smem, kernel_stream>>>(args);
+        }
     } else {
         // Q>1: Q-interleave kernel (experimental).
         // Phase 3.2: templated on Dispatch; currently only StreamingDispatch
         // is supported (see kernel_qi.cuh static_assert).
-        if (data_type == shared::UINT8)
+        if (d_query_ef != nullptr) {
+            if (data_type == shared::UINT8)
+                persistent_search_kernel_qi<StreamingDispatch, uint8_t, true><<<num_blocks, 128, smem, kernel_stream>>>(args);
+            else if (data_type == shared::INT8)
+                persistent_search_kernel_qi<StreamingDispatch, int8_t, true><<<num_blocks, 128, smem, kernel_stream>>>(args);
+            else
+                persistent_search_kernel_qi<StreamingDispatch, float, true><<<num_blocks, 128, smem, kernel_stream>>>(args);
+        } else if (data_type == shared::UINT8) {
             persistent_search_kernel_qi<StreamingDispatch, uint8_t><<<num_blocks, 128, smem, kernel_stream>>>(args);
-        else if (data_type == shared::INT8)
+        } else if (data_type == shared::INT8) {
             persistent_search_kernel_qi<StreamingDispatch, int8_t><<<num_blocks, 128, smem, kernel_stream>>>(args);
-        else
+        } else {
             persistent_search_kernel_qi<StreamingDispatch, float><<<num_blocks, 128, smem, kernel_stream>>>(args);
+        }
     }
 
     // CPU completion poller: monitor queries_completed (mapped), feed new queries.
@@ -1009,6 +1046,12 @@ void run_persistent_search(
 
         if (current_done > last_done) {
             double now = shared::elapsed();
+            if (phase_timing) {
+                if (phase_done90 == 0 && current_done >= num_queries * 0.90)
+                    phase_done90 = now;
+                if (phase_done99 == 0 && current_done >= num_queries * 0.99)
+                    phase_done99 = now;
+            }
             for (int i = last_done; i < current_done; i++) {
                 query_latencies_buf[latency_count++] =
                     (now - query_start_times[i]) * 1000.0;
@@ -1050,6 +1093,7 @@ void run_persistent_search(
         }
     }
 
+    const double phase_all_done = phase_timing ? shared::elapsed() : 0;
     // Drain any last pending events (should be rare: if all queries have
     // completed, all H2Ds must have been consumed by the kernel already).
     while (pending_count > 0) {
@@ -1127,6 +1171,14 @@ void run_persistent_search(
 
     // ---- 10. Report ----
     double search_time = t1 - t0;
+    if (phase_timing) {
+        std::cout << "[Quiver phases ms] initial_h2d=" << (t_after_h2d - t0) * 1000
+                  << " last10pct=" << (phase_all_done - phase_done90) * 1000
+                  << " last1pct=" << (phase_all_done - phase_done99) * 1000
+                  << " terminate_sync=" << (t_after_kernel - phase_all_done) * 1000
+                  << " output_and_counters=" << (t1 - t_after_kernel) * 1000
+                  << " search_total=" << search_time * 1000 << '\n';
+    }
     auto io_stats = loader->snapshot_stats();
 
     // Per-query latency summary (only the first `latency_count` entries
@@ -1154,6 +1206,7 @@ void run_persistent_search(
                    << " poll_threads=" << thread_cnt
                    << " poll_submit_batch_size=" << poll_submit_batch_size
                    << " prefeed=" << prefeed_depth;
+    if (query_efs != nullptr) runtime_params << " per_query_ef=1";
     if (early_exit.enabled()) {
         runtime_params << " early_exit_policy="
                        << (early_exit.policy == EarlyExitPolicy::kDarth ? "darth" :
@@ -1343,6 +1396,7 @@ void run_persistent_search(
     if (d_step_recall_hits) CHECK_CUDA(cudaFree(d_step_recall_hits));
     if (d_early_exit_stop_step) CHECK_CUDA(cudaFree(d_early_exit_stop_step));
     if (d_finish_step) CHECK_CUDA(cudaFree(d_finish_step));
+    if (d_query_ef) CHECK_CUDA(cudaFree(d_query_ef));
     if (h_darth_comm_slots) CHECK_CUDA(cudaFreeHost(h_darth_comm_slots));
     CHECK_CUDA(cudaFreeHost(d_out_nns));
     CHECK_CUDA(cudaFreeHost(d_out_dist));
@@ -1399,6 +1453,9 @@ void run_static_batch_search(
     int num_dims       = (int)layout.num_dims;
     int max_m          = (int)layout.max_m0;
     int nodes_per_page = (int)layout.nodes_per_page;
+    int sectors_per_node = (int)layout.sectors_per_node;
+    int64_t io_bytes = layout.io_bytes > 0 ? layout.io_bytes
+                                           : shared::PAGE_SIZE;
     int node_size      = (int)layout.node_size;
     int data_size      = (int)layout.data_size;
     int aligned_ef     = (max_m + ef_search + 31) / 32 * 32;
@@ -1431,9 +1488,9 @@ void run_static_batch_search(
     for (int i = 0; i < num_io_slots; i++) h_controls[i].status = IO_IDLE;
 
     uint8_t* h_buffers =
-        loader->create_buffer((int64_t)shared::PAGE_SIZE * num_io_slots);
+        loader->create_buffer(io_bytes * num_io_slots);
     CHECK_CUDA(cudaHostRegister(h_buffers,
-                                (size_t)shared::PAGE_SIZE * num_io_slots,
+                                (size_t)io_bytes * num_io_slots,
                                 cudaHostRegisterDefault));
 
     // ---- 3. Comm struct (pinned+mapped) ----
@@ -1523,6 +1580,7 @@ void run_static_batch_search(
     args.compressed_data  = pq->device_data.compressed_data;
     args.pq_block_offset  = 0;
     args.nodes_per_page   = nodes_per_page;
+    args.io_bytes         = (int)io_bytes;
     args.node_size        = node_size;
     args.data_size        = data_size;
     args.num_dims         = num_dims;
@@ -1613,7 +1671,7 @@ void run_static_batch_search(
             shared::bind_core(t * 2 + 21);
             cpu_poll_loop(t, s0, s1,
                           h_controls, h_buffers,
-                          nodes_per_page, loader,
+                          nodes_per_page, sectors_per_node, io_bytes, loader,
                           poll_submit_batch_size,
                           poll_done,
 #ifdef QUIVER_LATENCY_PROBE

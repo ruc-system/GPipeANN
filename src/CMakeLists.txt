@@ -351,6 +351,9 @@ target_include_directories(flashanns_probe_report_test
 target_compile_options(flashanns_probe_report_test
   PRIVATE "-O2" "-g")
 
+add_executable(quiver_pq_lut_test quiver/pq_lut_test.cu)
+target_compile_options(quiver_pq_lut_test PRIVATE "-O2" "-lineinfo")
+
 add_executable(quiver_probe_report_test
   quiver/probe_report_test.cpp)
 set_source_files_properties(quiver/probe_report_test.cpp PROPERTIES

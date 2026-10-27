@@ -4,7 +4,7 @@ set -euo pipefail
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
 if [[ $# -lt 1 ]]; then
-  echo "usage: $0 sift1b|deep1b|sift1m|deep1m [--oneshot]" >&2
+  echo "usage: $0 sift1b|deep1b|sift1m|deep1m|openai1m [--oneshot]" >&2
   exit 1
 fi
 
@@ -23,6 +23,10 @@ cd "${ROOT}"
 
 OUT_LIST="${SSD_LIST}"
 if [[ "${ONESHOT}" -eq 1 ]]; then
+  if [[ "${DATASET}" == "openai1m" ]]; then
+    echo "openai1m is reserved as a four-SSD multi-sector image" >&2
+    exit 1
+  fi
   SPDK_BASE_LBA="${SPDK_BASE_LBA_1SSD}"
   use_1ssd "${AE_DIR}/.cache/ssd_list_${DATASET}_1ssd.txt"
   OUT_LIST="${SSD_LIST}"
@@ -35,6 +39,7 @@ echo "dataset=${DATASET}"
 echo "disk_index=${DISK_INDEX}"
 echo "ssd_list=${OUT_LIST}"
 echo "SPDK_BASE_LBA=${SPDK_BASE_LBA}"
+echo "SPDK_IO_BYTES=${SPDK_IO_BYTES:-4096}"
 echo "PCI_ALLOWED=${PCI_ALLOWED}"
 
 sudo -n env HUGEMEM=4096 PCI_ALLOWED="${PCI_ALLOWED}" DEV_TYPE=NVME \
@@ -42,6 +47,7 @@ sudo -n env HUGEMEM=4096 PCI_ALLOWED="${PCI_ALLOWED}" DEV_TYPE=NVME \
 
 sudo -n env \
   SPDK_BASE_LBA="${SPDK_BASE_LBA}" \
+  SPDK_IO_BYTES="${SPDK_IO_BYTES:-4096}" \
   SPDK_WRITE_READ_BUFFER_MB="${SPDK_WRITE_READ_BUFFER_MB}" \
   "${SPDK_WRITE}" "${DISK_INDEX}" "${OUT_LIST}"
 

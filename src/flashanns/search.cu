@@ -98,6 +98,8 @@ static void cpu_poll_loop(
     int tid, int slot_start, int slot_end,
     IOControl* controls, uint8_t* buffers,
     int nodes_per_page,
+    int sectors_per_node,
+    int64_t io_bytes,
     std::shared_ptr<shared::IndexLoader> loader,
     int ctx_base, int pool_size,
     int poll_submit_batch_size,
@@ -198,9 +200,11 @@ static void cpu_poll_loop(
             int32_t st = __atomic_load_n(&controls[gi].status, __ATOMIC_ACQUIRE);
             if (st == IO_REQUESTED) {
                 local_found++;
-                int blk = controls[gi].node_id / nodes_per_page;
+                int blk = shared::node_first_page(controls[gi].node_id,
+                                                  nodes_per_page,
+                                                  sectors_per_node);
                 req_buf.push_back(
-                    {blk, buffers + (int64_t)gi * shared::PAGE_SIZE});
+                    {blk, buffers + (int64_t)gi * io_bytes});
                 idx_buf.push_back(i);
                 if ((int)req_buf.size() >= poll_submit_batch_size) {
                     submit_current_batch();
@@ -247,7 +251,8 @@ void run_persistent_search(
     int* nns,
     float* distances,
     int* found_cnt,
-    int repeat)
+    int repeat,
+    const int* query_efs)
 {
 #ifdef FLASHANNS_FIXED_PIPE_WIDTH
     pipe_w = FLASHANNS_FIXED_PIPE_WIDTH;
@@ -255,6 +260,9 @@ void run_persistent_search(
     int num_dims       = (int)layout.num_dims;
     int max_m          = (int)layout.max_m0;
     int nodes_per_page = (int)layout.nodes_per_page;
+    int sectors_per_node = (int)layout.sectors_per_node;
+    int64_t io_bytes = layout.io_bytes > 0 ? layout.io_bytes
+                                           : shared::PAGE_SIZE;
     int node_size      = (int)layout.node_size;
     int data_size      = (int)layout.data_size;
     int aligned_ef     = (max_m + ef_search + 31) / 32 * 32;
@@ -281,9 +289,9 @@ void run_persistent_search(
     for (int i = 0; i < num_io_slots; i++) h_controls[i].status = IO_IDLE;
 
     uint8_t* h_buffers =
-        loader->create_buffer((int64_t)shared::PAGE_SIZE * num_io_slots);
+        loader->create_buffer(io_bytes * num_io_slots);
     CHECK_CUDA(cudaHostRegister(h_buffers,
-                                (size_t)shared::PAGE_SIZE * num_io_slots,
+                                (size_t)io_bytes * num_io_slots,
                                 cudaHostRegisterDefault));
 
     // ---- 3. Comm struct (pinned+mapped) ----
@@ -374,6 +382,7 @@ void run_persistent_search(
     args.compressed_data  = pq->device_data.compressed_data;
     args.pq_block_offset  = 0;
     args.nodes_per_page   = nodes_per_page;
+    args.io_bytes         = (int)io_bytes;
     args.node_size        = node_size;
     args.data_size        = data_size;
     args.num_dims         = num_dims;
@@ -389,6 +398,19 @@ void run_persistent_search(
     args.d_distances      = d_dist;
     args.d_found_cnt      = d_fc;
 
+    int* d_query_ef = nullptr;
+    if (query_efs != nullptr) {
+        CHECK_CUDA(cudaMalloc(&d_query_ef, sizeof(int) * num_queries));
+        CHECK_CUDA(cudaMemcpy(d_query_ef, query_efs,
+                              sizeof(int) * num_queries,
+                              cudaMemcpyHostToDevice));
+        INFO("Per-query ef enabled for {} queries (allocation ef={})",
+             num_queries, ef_search);
+    }
+    args.d_query_ef = d_query_ef;
+    args.total_search_queries = num_queries;
+    args.batch_query_offset = 0;
+
 #ifdef FLASHANNS_LATENCY_PROBE
     args.d_probe_traces = d_probe_traces;
 #endif
@@ -398,8 +420,6 @@ void run_persistent_search(
     args.breakdown_sample_count = breakdown_sample_count;
     args.breakdown_cta_window_count = breakdown_cta_window_count;
     args.breakdown_cta_window_ns = breakdown_cta_window_ns;
-    args.total_search_queries = num_queries;
-    args.batch_query_offset = 0;
 #endif
 
     int smem = (int)((sizeof(int) * 3 + sizeof(float) * 2)
@@ -436,7 +456,7 @@ void run_persistent_search(
             shared::bind_core(t * 2 + 21);
             cpu_poll_loop(t, s0, s1,
                           h_controls, h_buffers,
-                          nodes_per_page, loader,
+                          nodes_per_page, sectors_per_node, io_bytes, loader,
                           ctx_base, pool_size,
                           poll_submit_batch_size,
                           poll_done,
@@ -517,9 +537,7 @@ void run_persistent_search(
         // block maps 1:1 to a query within that batch (qid = blockIdx.x).
         h_comm->total_queries = batch_size;
         h_comm->num_blocks    = blocks_this;
-#ifdef QUIVER_LIGHT_BREAKDOWN
         args.batch_query_offset = batch_off;
-#endif
         double tb_after_nav = shared::elapsed();
 
         // Launch kernel
@@ -527,12 +545,20 @@ void run_persistent_search(
 #ifdef QUIVER_LIGHT_BREAKDOWN
         double tb_before_kernel_launch = shared::elapsed();
 #endif
-        if (data_type == shared::UINT8)
+        if (d_query_ef != nullptr) {
+            if (data_type == shared::UINT8)
+                persistent_search_kernel<uint8_t, true><<<blocks_this, 128, smem>>>(args);
+            else if (data_type == shared::INT8)
+                persistent_search_kernel<int8_t, true><<<blocks_this, 128, smem>>>(args);
+            else
+                persistent_search_kernel<float, true><<<blocks_this, 128, smem>>>(args);
+        } else if (data_type == shared::UINT8) {
             persistent_search_kernel<uint8_t><<<blocks_this, 128, smem>>>(args);
-        else if (data_type == shared::INT8)
+        } else if (data_type == shared::INT8) {
             persistent_search_kernel<int8_t><<<blocks_this, 128, smem>>>(args);
-        else
+        } else {
             persistent_search_kernel<float><<<blocks_this, 128, smem>>>(args);
+        }
 #ifdef QUIVER_LIGHT_BREAKDOWN
         double tb_after_kernel_launch = shared::elapsed();
 #endif
@@ -684,6 +710,7 @@ void run_persistent_search(
     shared::RunReport report;
     report.program = "FlashANNS";
     report.query = {shared::data_type_name(data_type), topk, ef_search, repeat};
+    if (query_efs != nullptr) runtime_params << " per_query_ef=1";
     report.runtime_params = runtime_params.str();
     report.qps = num_queries / search_time;
     report.latency_label = "BatchLatency(ms)";
@@ -809,6 +836,7 @@ void run_persistent_search(
     CHECK_CUDA(cudaFree(d_breakdown_traces));
     CHECK_CUDA(cudaFree(d_breakdown_cta_windows));
 #endif
+    if (d_query_ef) CHECK_CUDA(cudaFree(d_query_ef));
     CHECK_CUDA(cudaFree(d_qdata));
     CHECK_CUDA(cudaFree(d_entry));
     CHECK_CUDA(cudaFree(d_nid));

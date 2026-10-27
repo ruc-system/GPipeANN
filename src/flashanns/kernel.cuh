@@ -12,6 +12,7 @@ using shared::PQSearchData;
 using shared::lower_bound;
 using shared::retset_push_32;
 using shared::square_sum_32;
+using shared::disk_payload_dims;
 
 __device__ void persistent_merge_data(
     uint8_t* buffer, int32_t node_id,
@@ -138,7 +139,10 @@ __device__ int32_t persistent_visit_select(
     if (node_id != -1) {
         int buf_off = node_id % nodes_per_page * node_size;
         T* buffer_u = (T*)(buffer + buf_off);
-        float dist = square_sum_32(qdata, buffer_u, num_dims);
+        const int payload_bytes =
+            node_size - (max_m + 1) * static_cast<int>(sizeof(uint32_t));
+        float dist = square_sum_32(
+            qdata, buffer_u, disk_payload_dims<T>(num_dims, payload_bytes));
         retset_push_32(distances, nns, found_cnt[0], topk, dist, node_id);
     }
     int sz = ctx->size;
@@ -250,7 +254,7 @@ __device__ __forceinline__ void issue_request(IOControl* ctl, int32_t node_id)
 // Within each query, ALL ready IO lanes are processed per pipe iteration
 // to avoid lane starvation with fast backends.
 // ================================================================
-template <class T>
+template <class T, bool PerQueryEf = false>
 __global__ void persistent_search_kernel(PersistentKernelArgs args)
 {
     extern __shared__ uint8_t shm_pool[];
@@ -270,6 +274,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
 
     __shared__ int32_t lane_req[16];
     __shared__ int     s_ready_w;
+    __shared__ int     s_query_ef;
     __shared__ int32_t snap_st[16];
     __shared__ int32_t snap_nd[16];
 
@@ -285,7 +290,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                           * PQSearchData::num_pivots * args.num_chunks;
     IOControl* my_ctl   = args.comm->controls + bid * W;
     uint8_t*   my_buf   = args.comm->buffers
-                        + (long)bid * W * shared::PAGE_SIZE;
+                        + (long)bid * W * args.io_bytes;
 
 #ifdef QUIVER_LIGHT_BREAKDOWN
     __shared__ int32_t s_breakdown_cta_window_active;
@@ -405,6 +410,16 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
     // ============================================================
     const int qid = bid;
     if (qid >= args.comm->total_queries) return;
+    int query_ef = args.ef_search;
+    if constexpr (PerQueryEf) {
+        if (tid == 0) {
+            const int global_qid = args.batch_query_offset + qid;
+            int ef = args.d_query_ef[global_qid];
+            s_query_ef = max(1, min(ef, args.ef_search));
+        }
+        __syncthreads();
+        query_ef = s_query_ef;
+    }
 
 #ifdef QUIVER_LIGHT_BREAKDOWN
     const int global_qid = args.batch_query_offset + qid;
@@ -538,7 +553,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
             my_buf, entry,
             args.num_chunks, my_pq, args.compressed_data,
             args.nodes_per_page, args.node_size, args.data_size,
-            args.max_m, args.ef_search,
+            args.max_m, query_ef,
             my_nid, my_ndist, my_ctx,
             mv_pos, mv_id, mv_dist, tmp_id, tmp_dist
 #ifdef FLASHANNS_LATENCY_PROBE
@@ -558,7 +573,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                 args.num_dims, args.topk,
                 my_nns, my_dist, my_fc,
                 args.nodes_per_page, args.node_size,
-                args.max_m, args.ef_search,
+                args.max_m, query_ef,
                 my_nid, my_ndist, my_ctx);
         }
         __syncthreads();
@@ -578,7 +593,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
         if (tid < 32) {
             for (int w = 1; w < W; w++)
                 lane_req[w] = persistent_select_next(
-                    args.max_m, args.ef_search, my_nid, my_ndist, my_ctx);
+                    args.max_m, query_ef, my_nid, my_ndist, my_ctx);
         }
         __syncthreads();
 
@@ -701,10 +716,10 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                 int64_t probe_t_lane_merge_start = globaltimer_ns();
 #endif
                 persistent_merge_data(
-                    my_buf + w * shared::PAGE_SIZE, snap_nd[w],
+                    my_buf + w * args.io_bytes, snap_nd[w],
                     args.num_chunks, my_pq, args.compressed_data,
                     args.nodes_per_page, args.node_size, args.data_size,
-                    args.max_m, args.ef_search,
+                    args.max_m, query_ef,
                     my_nid, my_ndist, my_ctx,
                     mv_pos, mv_id, mv_dist, tmp_id, tmp_dist
 #ifdef FLASHANNS_LATENCY_PROBE
@@ -721,11 +736,11 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
 
                 if (tid < 32)
                     lane_req[w] = persistent_visit_select<T>(
-                        qdata, my_buf + w * shared::PAGE_SIZE, snap_nd[w],
+                        qdata, my_buf + w * args.io_bytes, snap_nd[w],
                         args.num_dims, args.topk,
                         my_nns, my_dist, my_fc,
                         args.nodes_per_page, args.node_size,
-                        args.max_m, args.ef_search,
+                        args.max_m, query_ef,
                         my_nid, my_ndist, my_ctx);
                 __syncthreads();
 
@@ -763,7 +778,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                     if (snap_st[w] != IO_READY &&
                         *(volatile int32_t*)&my_ctl[w].status == IO_IDLE) {
                         lane_req[w] = persistent_select_next(
-                            args.max_m, args.ef_search,
+                            args.max_m, query_ef,
                             my_nid, my_ndist, my_ctx);
                     }
                 }

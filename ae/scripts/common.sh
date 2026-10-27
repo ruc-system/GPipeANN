@@ -2,7 +2,7 @@
 # Shared AE knobs. Machine-specific overrides live in ae/config.env.
 #
 # AE_SCALE=1b|1m (default 1b). use_dataset sift|deep follows AE_SCALE;
-# sift1b|deep1b|sift1m|deep1m are explicit.
+# sift1b|deep1b|sift1m|deep1m|openai1m are explicit.
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
   echo "source this file; do not execute it" >&2
@@ -113,6 +113,7 @@ SIFT1M_1SSD_SPDK_BASE_LBA="${SIFT1M_1SSD_SPDK_BASE_LBA:-150994944}"  # 576 GiB
 DEEP1M_1SSD_SPDK_BASE_LBA="${DEEP1M_1SSD_SPDK_BASE_LBA:-150994944}"
 SIFT1B_1SSD_SPDK_BASE_LBA="${SIFT1B_1SSD_SPDK_BASE_LBA:-159383552}"  # 576 GiB + 32 GiB
 DEEP1B_1SSD_SPDK_BASE_LBA="${DEEP1B_1SSD_SPDK_BASE_LBA:-159383552}"
+OPENAI1M_SPDK_BASE_LBA="${OPENAI1M_SPDK_BASE_LBA:-440401920}"        # R128/L200/PQ64, 4-KiB units
 
 # Index / query paths (override in config.env when layouts differ across machines).
 SIFT1B_INDEX_DIR="${SIFT1B_INDEX_DIR:-${INDEX_ROOT}/sift1b-R128-QD32/}"
@@ -123,6 +124,21 @@ SIFT1B_DISK_INDEX="${SIFT1B_DISK_INDEX:-${SIFT1B_INDEX_DIR}/1B_disk.index}"
 DEEP1B_DISK_INDEX="${DEEP1B_DISK_INDEX:-${DEEP1B_INDEX_DIR}/1B_disk.index}"
 SIFT1M_DISK_INDEX="${SIFT1M_DISK_INDEX:-${SIFT1M_INDEX_DIR}/ann_disk.index}"
 DEEP1M_DISK_INDEX="${DEEP1M_DISK_INDEX:-${DEEP1M_INDEX_DIR}/ann_disk.index}"
+# The single OpenAI1M build/search configuration used by the formal figure.
+OPENAI1M_R=128
+OPENAI1M_LBUILD=200
+OPENAI1M_PQ_BYTES=64
+OPENAI1M_INDEX_PREFIX="index_${OPENAI1M_R}_${OPENAI1M_LBUILD}"
+OPENAI1M_INDEX_DIR="${OPENAI1M_INDEX_DIR:-${INDEX_ROOT}/openai1m-R${OPENAI1M_R}-L${OPENAI1M_LBUILD}-QD${OPENAI1M_PQ_BYTES}}"
+OPENAI1M_NAV_INDEX_DIR="${OPENAI1M_NAV_INDEX_DIR:-${INDEX_ROOT}/openai1m-R${OPENAI1M_R}-L${OPENAI1M_LBUILD}-QD${OPENAI1M_PQ_BYTES}-nav10k}"
+OPENAI1M_DISK_INDEX="${OPENAI1M_DISK_INDEX:-${OPENAI1M_INDEX_DIR}/${OPENAI1M_INDEX_PREFIX}_disk.index}"
+OPENAI1M_BASE="${OPENAI1M_BASE:-${DATASET_ROOT}/openai1m/base.fbin}"
+OPENAI1M_EF=75
+OPENAI1M_REPEAT=20
+OPENAI1M_NUM_BLOCKS_LIST="108,216,324,432,540,648,756,864,972,1080"
+OPENAI1M_MINI_BATCH_LIST="16,24,32,48,64,96,128,192"
+OPENAI1M_QUIVER_Q1_NBS="108,216,324"
+OPENAI1M_QUIVER_Q2_NBS="${OPENAI1M_NUM_BLOCKS_LIST}"
 
 SIFT1B_QUERY="${SIFT1B_QUERY:-${DATASET_ROOT}/sift1b/query.u8bin}"
 SIFT1B_GT="${SIFT1B_GT:-${DATASET_ROOT}/sift1b/gt.ibin}"
@@ -132,6 +148,8 @@ SIFT1M_QUERY="${SIFT1M_QUERY:-${DATASET_ROOT}/sift1m/query.fbin}"
 SIFT1M_GT="${SIFT1M_GT:-${DATASET_ROOT}/sift1m/gt.ibin}"
 DEEP1M_QUERY="${DEEP1M_QUERY:-${DATASET_ROOT}/deep1m/query.fbin}"
 DEEP1M_GT="${DEEP1M_GT:-${DATASET_ROOT}/deep1m/gt.ibin}"
+OPENAI1M_QUERY="${OPENAI1M_QUERY:-${DATASET_ROOT}/openai1m/query.fbin}"
+OPENAI1M_GT="${OPENAI1M_GT:-${DATASET_ROOT}/openai1m/gt.ibin}"
 FUSIONANNS_SIFT100M_QUERY="${FUSIONANNS_SIFT100M_QUERY:-${DATASET_ROOT}/sift100m/query.public.10K.u8bin}"
 FUSIONANNS_SIFT100M_GT="${FUSIONANNS_SIFT100M_GT:-${DATASET_ROOT}/sift100m/groundtruth.100m.ibin}"
 FUSIONANNS_DEEP100M_QUERY="${FUSIONANNS_DEEP100M_QUERY:-${DATASET_ROOT}/deep100m/query.public.10K.fbin}"
@@ -180,6 +198,7 @@ FUSIONANNS_DEEP_RERANK_LIST="${FUSIONANNS_DEEP_RERANK_LIST:-104}"
 
 use_dataset() {
   local name="$1"
+  SPDK_IO_BYTES=4096
   case "${name}" in
     sift|deep)
       case "${AE_SCALE}" in
@@ -269,8 +288,22 @@ use_dataset() {
       EF_RECALL_96=145
       EF_RECALL_98=255
       ;;
+    openai1m)
+      DATASET=openai1m
+      INDEX_DIR="${OPENAI1M_INDEX_DIR}"
+      DISK_INDEX="${OPENAI1M_DISK_INDEX}"
+      QUERY="${OPENAI1M_QUERY}"
+      GT="${OPENAI1M_GT}"
+      DATA_TYPE=float
+      SPDK_BASE_LBA="${OPENAI1M_SPDK_BASE_LBA}"
+      SPDK_IO_BYTES=8192
+      PCI_1SSD=""
+      # Recall@10 ~= 0.90 at ef=80 for the R128/L200/PQ64 figure.
+      unset EF_RECALL_88 EF_RECALL_92 EF_RECALL_94 EF_RECALL_96 EF_RECALL_98
+      EF_RECALL_90="${OPENAI1M_EF}"
+      ;;
     *)
-      echo "unknown dataset: $1 (expected sift|deep|sift1b|deep1b|sift1m|deep1m)" >&2
+      echo "unknown dataset: $1 (expected sift|deep|sift1b|deep1b|sift1m|deep1m|openai1m)" >&2
       exit 1
       ;;
   esac
@@ -556,7 +589,7 @@ ae_export_result_csv() {
     esac
   done
   export QUIVER_AE_EF="${ef}"
-  export QUIVER_AE_TARGET_RECALL="$(ae_target_recall_from_ef "${ef}")"
+  export QUIVER_AE_TARGET_RECALL="${QUIVER_AE_TARGET_RECALL_OVERRIDE:-$(ae_target_recall_from_ef "${ef}")}"
 }
 
 ae_print_layout() {
@@ -708,10 +741,18 @@ with path.open(newline="") as handle:
 if not fieldnames:
     raise SystemExit(0)
 kept = [row for row in rows if row.get("stem") != stem]
-with path.open("w", newline="") as handle:
+# Search runs under sudo, so its CSV may be root-owned. Replace it in the
+# caller-owned result directory instead of reopening that file for writing.
+import os
+import tempfile
+with tempfile.NamedTemporaryFile(mode="w", newline="", dir=path.parent,
+                                 prefix=path.name + ".", delete=False) as handle:
+    temporary = Path(handle.name)
     writer = csv.DictWriter(handle, fieldnames=fieldnames)
     writer.writeheader()
     writer.writerows(kept)
+os.chmod(temporary, path.stat().st_mode & 0o777)
+os.replace(temporary, path)
 PY
   done
 }

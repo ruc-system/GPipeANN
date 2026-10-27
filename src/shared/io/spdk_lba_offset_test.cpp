@@ -19,9 +19,9 @@ int main() {
   require(shared::spdk_base_lba_from_env() == 0,
           "SPDK_BASE_LBA should default to zero");
 
-  setenv("SPDK_BASE_LBA", "671088640", 1);
-  require(shared::spdk_base_lba_from_env() == 671088640,
-          "SPDK_BASE_LBA should parse the 2.5TiB 4KB-block offset");
+  setenv("SPDK_BASE_LBA", "436207616", 1);
+  require(shared::spdk_base_lba_from_env() == 436207616,
+          "SPDK_BASE_LBA should parse a non-zero 4KB-block offset");
 
   setenv("SPDK_BASE_LBA", "", 1);
   require(shared::spdk_base_lba_from_env() == 0,
@@ -49,5 +49,20 @@ int main() {
           "negative QUIVER_SPDK_BLOCK_OFFSET should fall back to zero");
 
   unsetenv("QUIVER_SPDK_BLOCK_OFFSET");
+
+  int ssd = -1;
+  long off = -1;
+  shared::map_index_page_to_ssd(0, 4096, 4, 100, 0, &ssd, &off);
+  require(ssd == 0 && off == 100, "4KB page 0 mapping");
+  shared::map_index_page_to_ssd(5, 4096, 4, 100, 0, &ssd, &off);
+  require(ssd == 1 && off == 101, "4KB page 5 mapping");
+
+  shared::map_index_page_to_ssd(0, 8192, 4, 100, 0, &ssd, &off);
+  require(ssd == 0 && off == 100, "8KB node 0 mapping");
+  shared::map_index_page_to_ssd(2, 8192, 4, 100, 0, &ssd, &off);
+  require(ssd == 1 && off == 100, "8KB node 1 mapping");
+  shared::map_index_page_to_ssd(8, 8192, 4, 100, 0, &ssd, &off);
+  require(ssd == 0 && off == 102, "8KB node 4 mapping");
+
   return 0;
 }

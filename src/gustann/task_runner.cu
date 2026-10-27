@@ -5,6 +5,7 @@
 #include <random>
 
 #include "shared/common/gpu_primitives.cuh"
+#include "shared/common/layout.hpp"
 #include "shared/common/logging.hpp"
 #include "shared/common/runtime.hpp"
 #ifdef QUIVER_LIGHT_BREAKDOWN
@@ -107,8 +108,9 @@ void free_host_pinned_noexcept(void *&ptr) noexcept {
 TaskRunner::TaskRunner(int _tid, int _cid_base, int _mini_batch, int _num_dims,
                        int _topk, int64_t _num_data, int _max_m0,
                        int _ef_search, int _enter_point, uint8_t *_starter,
-                       PQSearch *_pq, int nodes_per_page, int node_size,
-                       int data_size, DataType data_type_,
+                       PQSearch *_pq, int nodes_per_page, int sectors_per_node,
+                       int64_t io_bytes, int node_size, int data_size,
+                       DataType data_type_,
                        std::shared_ptr<IndexLoader> _loader, NavGraph *_nav,
                        int _pipe_w) try {
   tid = _tid;
@@ -129,6 +131,8 @@ TaskRunner::TaskRunner(int _tid, int _cid_base, int _mini_batch, int _num_dims,
   enter_point = _enter_point;
 
   nodes_per_page_ = nodes_per_page;
+  sectors_per_node_ = sectors_per_node > 0 ? sectors_per_node : 1;
+  io_bytes_ = io_bytes > 0 ? io_bytes : PAGE_SIZE;
   node_size_ = node_size;
   data_size_ = data_size;
   data_type = data_type_;
@@ -198,9 +202,9 @@ TaskRunner::TaskRunner(int _tid, int _cid_base, int _mini_batch, int _num_dims,
   for (int w = 0; w < GUSTANN_PIPE_W; w++) {
     auto &sl = sub_lanes_[w];
     sl.cid = _cid_base * GUSTANN_PIPE_W + w;
-    sl.buffer = loader->create_buffer((int64_t)PAGE_SIZE * mini_batch);
+    sl.buffer = loader->create_buffer(io_bytes_ * mini_batch);
     CHECK_CUDA(cudaHostRegister(
-        sl.buffer, sizeof(uint8_t) * PAGE_SIZE * mini_batch,
+        sl.buffer, sizeof(uint8_t) * io_bytes_ * mini_batch,
         cudaHostRegisterDefault));
     sl.buffer_registered = true;
     CHECK_CUDA(cudaMallocHost(&sl.request, sizeof(int32_t) * mini_batch));
@@ -280,11 +284,7 @@ void TaskRunner::init_query(const float *qdata, int _qcnt, int *_nns,
   distances_ = _dis;
   found_cnt_ = _found_cnt;
   start_pt_ = _start_pt;
-#if defined(GUSTANN_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
   query_base_ = _query_base;
-#else
-  (void)_query_base;
-#endif
 #ifdef GUSTANN_LATENCY_PROBE
   current_batch_has_kept_io_trace_ = false;
 #endif
@@ -368,7 +368,7 @@ void TaskRunner::init_query(const float *qdata, int _qcnt, int *_nns,
 #endif
   } else {
     for (int j = 0; j < qcnt_; j++) {
-      memcpy(sub_lanes_[0].buffer + PAGE_SIZE * j, starter, PAGE_SIZE);
+      memcpy(sub_lanes_[0].buffer + io_bytes_ * j, starter, io_bytes_);
       sub_lanes_[0].request[j] = enter_point;
     }
   }
@@ -522,11 +522,12 @@ void TaskRunner::submit_ssd_sublane(int w) {
         fprintf(stderr, "pipe_search: invalid request %d\n", sl.request[j]);
         std::abort();
       }
-      int blockid = sl.request[j] / nodes_per_page_;
-      pages.emplace_back(blockid, sl.buffer + PAGE_SIZE * j);
+      int blockid = shared::node_first_page(
+          sl.request[j], nodes_per_page_, sectors_per_node_);
+      pages.emplace_back(blockid, sl.buffer + io_bytes_ * j);
 #ifdef GUSTANN_LATENCY_PROBE
       if (batch_tail_cases_per_runner_ > 0) {
-        traced_pages.push_back({blockid, sl.buffer + PAGE_SIZE * j, j,
+        traced_pages.push_back({blockid, sl.buffer + io_bytes_ * j, j,
                                 trace.enqueue_ns.data(), trace.submit_ns.data(),
                                 trace.complete_ns.data()});
         trace.active_ios++;
@@ -604,22 +605,42 @@ void TaskRunner::launch_merge_data(int w) {
 #ifdef QUIVER_LIGHT_BREAKDOWN
   const double launch_start = elapsed();
 #endif
-  merge_data_kernel<<<qcnt_, tcnt,
-                      ((sizeof(int) * 3 + sizeof(float) * 2) *
-                       (ef_search + max_m0)),
-                      stream_>>>(sl.buffer, sl.request, pq->device_data.num_chunks,
-                                 pq->device_data.pq_dists,
-                                 pq->device_data.compressed_data,
-                                 nodes_per_page_, node_size_, data_size_,
-                                 stream_offset_, max_m0, ef_search,
-                                 d_neighbors_id_, d_neighbors_dist_, d_ctx_
+  if (d_query_ef_ != nullptr) {
+    merge_data_kernel<true><<<qcnt_, tcnt,
+                         ((sizeof(int) * 3 + sizeof(float) * 2) *
+                          (ef_search + max_m0)),
+                         stream_>>>(sl.buffer, sl.request, pq->device_data.num_chunks,
+                                    pq->device_data.pq_dists,
+                                    pq->device_data.compressed_data,
+                                    nodes_per_page_, static_cast<int>(io_bytes_),
+                                    node_size_, data_size_, stream_offset_,
+                                    max_m0, ef_search, d_neighbors_id_,
+                                    d_neighbors_dist_, d_ctx_,
+                                    d_query_ef_ + query_base_
 #ifdef GUSTANN_LATENCY_PROBE
-                                 ,
-                                 d_probe_traces_, d_probe_active_samples_,
-                                 mini_batch, w, pending_hop_index_, query_base_,
-                                 d_probe_kernel_start_
+                                    , d_probe_traces_, d_probe_active_samples_,
+                                    mini_batch, w, pending_hop_index_, query_base_,
+                                    d_probe_kernel_start_
 #endif
-                                 );
+                                    );
+  } else {
+    merge_data_kernel<false><<<qcnt_, tcnt,
+                          ((sizeof(int) * 3 + sizeof(float) * 2) *
+                           (ef_search + max_m0)),
+                          stream_>>>(sl.buffer, sl.request, pq->device_data.num_chunks,
+                                     pq->device_data.pq_dists,
+                                     pq->device_data.compressed_data,
+                                     nodes_per_page_, static_cast<int>(io_bytes_),
+                                     node_size_, data_size_, stream_offset_,
+                                     max_m0, ef_search, d_neighbors_id_,
+                                     d_neighbors_dist_, d_ctx_, nullptr
+#ifdef GUSTANN_LATENCY_PROBE
+                                     , d_probe_traces_, d_probe_active_samples_,
+                                     mini_batch, w, pending_hop_index_, query_base_,
+                                     d_probe_kernel_start_
+#endif
+                                     );
+  }
 #ifdef QUIVER_LIGHT_BREAKDOWN
   const double launch_elapsed = elapsed() - launch_start;
   time_kernel_launch += launch_elapsed;
@@ -633,15 +654,27 @@ void TaskRunner::launch_visit_select(int w) {
 #ifdef QUIVER_LIGHT_BREAKDOWN
   const double launch_start = elapsed();
 #endif
-  pipe_visit_select_kernel<T><<<(qcnt_ + 1) / 2, 64, 0, stream_>>>(
-      d_qdata_, sl.buffer, sl.request, num_dims, topk, d_nns_, d_distances_,
-      d_found_cnt_, nodes_per_page_, node_size_, max_m0, ef_search,
-      d_neighbors_id_, d_neighbors_dist_, d_ctx_, qcnt_
+  if (d_query_ef_ != nullptr) {
+    pipe_visit_select_kernel<T, true><<<(qcnt_ + 1) / 2, 64, 0, stream_>>>(
+        d_qdata_, sl.buffer, sl.request, num_dims, topk, d_nns_, d_distances_,
+        d_found_cnt_, nodes_per_page_, static_cast<int>(io_bytes_), node_size_,
+        max_m0, ef_search, d_neighbors_id_, d_neighbors_dist_, d_ctx_, qcnt_,
+        d_query_ef_ + query_base_
 #ifdef GUSTANN_LATENCY_PROBE
-      ,
-      d_probe_traces_, d_probe_active_samples_, mini_batch, w
+        , d_probe_traces_, d_probe_active_samples_, mini_batch, w
 #endif
-      );
+        );
+  } else {
+    pipe_visit_select_kernel<T, false><<<(qcnt_ + 1) / 2, 64, 0, stream_>>>(
+        d_qdata_, sl.buffer, sl.request, num_dims, topk, d_nns_, d_distances_,
+        d_found_cnt_, nodes_per_page_, static_cast<int>(io_bytes_), node_size_,
+        max_m0, ef_search, d_neighbors_id_, d_neighbors_dist_, d_ctx_, qcnt_,
+        nullptr
+#ifdef GUSTANN_LATENCY_PROBE
+        , d_probe_traces_, d_probe_active_samples_, mini_batch, w
+#endif
+        );
+  }
 #ifdef QUIVER_LIGHT_BREAKDOWN
   const double launch_elapsed = elapsed() - launch_start;
   time_kernel_launch += launch_elapsed;
@@ -659,7 +692,8 @@ void TaskRunner::process_sublane_gpu(int w) {
 #endif
     visit_exact_dist_kernel<uint8_t><<<(qcnt_ + 1) / 2, 64, 0, stream_>>>(
         d_qdata_, sl.buffer, sl.request, num_dims, topk, d_nns_, d_distances_,
-        d_found_cnt_, nodes_per_page_, node_size_, data_size_, qcnt_);
+        d_found_cnt_, nodes_per_page_, static_cast<int>(io_bytes_), node_size_,
+        data_size_, qcnt_);
 #ifdef QUIVER_LIGHT_BREAKDOWN
     const double launch_elapsed = elapsed() - launch_start;
     time_kernel_launch += launch_elapsed;
@@ -676,7 +710,8 @@ void TaskRunner::process_sublane_gpu(int w) {
 #endif
     visit_exact_dist_kernel<int8_t><<<(qcnt_ + 1) / 2, 64, 0, stream_>>>(
         d_qdata_, sl.buffer, sl.request, num_dims, topk, d_nns_, d_distances_,
-        d_found_cnt_, nodes_per_page_, node_size_, data_size_, qcnt_);
+        d_found_cnt_, nodes_per_page_, static_cast<int>(io_bytes_), node_size_,
+        data_size_, qcnt_);
 #ifdef QUIVER_LIGHT_BREAKDOWN
     const double launch_elapsed = elapsed() - launch_start;
     time_kernel_launch += launch_elapsed;
@@ -693,7 +728,8 @@ void TaskRunner::process_sublane_gpu(int w) {
 #endif
     visit_exact_dist_kernel<float><<<(qcnt_ + 1) / 2, 64, 0, stream_>>>(
         d_qdata_, sl.buffer, sl.request, num_dims, topk, d_nns_, d_distances_,
-        d_found_cnt_, nodes_per_page_, node_size_, data_size_, qcnt_);
+        d_found_cnt_, nodes_per_page_, static_cast<int>(io_bytes_), node_size_,
+        data_size_, qcnt_);
 #ifdef QUIVER_LIGHT_BREAKDOWN
     const double launch_elapsed = elapsed() - launch_start;
     time_kernel_launch += launch_elapsed;
@@ -713,9 +749,15 @@ void TaskRunner::select_next_sublane(int w) {
 #ifdef QUIVER_LIGHT_BREAKDOWN
   const double launch_start = elapsed();
 #endif
-  pipe_select_next_kernel<<<(qcnt_ + 1) / 2, 64, 0, stream_>>>(
-      max_m0, ef_search, d_neighbors_id_, d_neighbors_dist_, d_ctx_,
-      sl.request, qcnt_);
+  if (d_query_ef_ != nullptr) {
+    pipe_select_next_kernel<true><<<(qcnt_ + 1) / 2, 64, 0, stream_>>>(
+        max_m0, ef_search, d_neighbors_id_, d_neighbors_dist_, d_ctx_,
+        sl.request, qcnt_, d_query_ef_ + query_base_);
+  } else {
+    pipe_select_next_kernel<false><<<(qcnt_ + 1) / 2, 64, 0, stream_>>>(
+        max_m0, ef_search, d_neighbors_id_, d_neighbors_dist_, d_ctx_,
+        sl.request, qcnt_, nullptr);
+  }
 #ifdef QUIVER_LIGHT_BREAKDOWN
   const double launch_elapsed = elapsed() - launch_start;
   time_kernel_launch += launch_elapsed;

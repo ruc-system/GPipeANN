@@ -51,7 +51,6 @@ plot/
 probe_outputs/
 
 # Machine-local AE state and generated figures.
-/ae/config.env
 /ae/.cache/
 /ae/figures/
 /ae/figures-paper/

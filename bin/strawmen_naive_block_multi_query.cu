@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
 
     auto loader = bin_common::create_index_loader(
         setup.memory_index_file, setup.layout.num_pages, setup.ssd_lists, run_nb,
-        poll_threads, pipe_width, queries_per_block);
+        poll_threads, pipe_width, queries_per_block, setup.layout.io_bytes);
     if (!loader) return 1;
 
     quiver::run_naive_block_multi_query_search(

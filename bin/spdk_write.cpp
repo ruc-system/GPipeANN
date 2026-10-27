@@ -93,10 +93,23 @@ int main(int argc, char** argv) {
 
   const int batch_size = get_env_int("SPDK_WRITE_BATCH_SIZE", 128);
   const int timeout_ms = get_env_int("SPDK_WRITE_WAIT_TIMEOUT_MS", 10000);
-  const std::size_t read_buffer_bytes =
+  const int io_bytes = get_env_int("SPDK_IO_BYTES", PG_SIZE);
+  if (io_bytes % PG_SIZE != 0) {
+    std::fprintf(stderr,
+                 "SPDK_IO_BYTES=%d must be a positive multiple of %ld\n",
+                 io_bytes, PG_SIZE);
+    return -1;
+  }
+  const long sectors_per_io = io_bytes / PG_SIZE;
+  std::size_t read_buffer_bytes =
       shared::spdk_write_read_buffer_bytes_from_env(
           "SPDK_WRITE_READ_BUFFER_MB", 64, PG_SIZE);
-  char* buff = (char*)spdk_dma_zmalloc(batch_size * PG_SIZE, PG_SIZE, NULL);
+  read_buffer_bytes -= read_buffer_bytes % static_cast<std::size_t>(io_bytes);
+  if (read_buffer_bytes == 0) {
+    read_buffer_bytes = static_cast<std::size_t>(io_bytes);
+  }
+  char* buff =
+      (char*)spdk_dma_zmalloc(batch_size * io_bytes, PG_SIZE, NULL);
   if (buff == nullptr) {
     std::fprintf(stderr, "spdk_dma_zmalloc failed\n");
     return -1;
@@ -118,31 +131,33 @@ int main(int argc, char** argv) {
   printf("SPDK_BASE_LBA: %ld\n", base_lba);
   printf("SPDK_WRITE_BATCH_SIZE: %d\n", batch_size);
   printf("SPDK_WRITE_WAIT_TIMEOUT_MS: %d\n", timeout_ms);
+  printf("SPDK_IO_BYTES: %d\n", io_bytes);
   printf("SPDK_WRITE_READ_BUFFER_BYTES: %zu\n", read_buffer_bytes);
   fflush(stdout);
 
   while (true) {
     const std::size_t bytes_read =
         fread(read_buffer.data(), 1, read_buffer.size(), f0);
-    if (bytes_read < static_cast<std::size_t>(PG_SIZE)) break;
+    if (bytes_read < static_cast<std::size_t>(io_bytes)) break;
 
-    const std::size_t full_pages = bytes_read / PG_SIZE;
-    for (std::size_t page = 0; page < full_pages; ++page) {
+    const std::size_t full_ios =
+        bytes_read / static_cast<std::size_t>(io_bytes);
+    for (std::size_t io = 0; io < full_ios; ++io) {
       int block = cnt % batch_size;
-      std::memcpy(buff + block * PG_SIZE, read_buffer.data() + page * PG_SIZE,
-                  PG_SIZE);
+      std::memcpy(buff + block * io_bytes,
+                  read_buffer.data() + io * io_bytes, io_bytes);
       int ns_id = cnt % shards;
-      long lba = base_lba + cnt / shards;
+      long lba = base_lba + (cnt / shards) * sectors_per_io;
       auto& ctx = ctxs[block];
       ctx.total_in_flight = &in_flight;
       ctx.per_disk_in_flight = &per_disk_in_flight;
       ctx.per_disk_completed = &per_disk_completed;
       ctx.per_disk_errors = &per_disk_errors;
       ctx.ns_id = ns_id;
-      ctx.block_id = cnt;
+      ctx.block_id = cnt * sectors_per_io;
       ctx.lba = lba;
       spdk->SubmitWriteCommand(
-          buff + block * PG_SIZE, PG_SIZE, lba,
+          buff + block * io_bytes, io_bytes, lba,
           [](void* ctx, const struct spdk_nvme_cpl* cpl) {
             auto* write_ctx = static_cast<WriteContext*>(ctx);
             if (spdk_nvme_cpl_is_error(cpl)) {
@@ -191,8 +206,8 @@ int main(int argc, char** argv) {
           }
         }
       }
-      if (cnt % 1000000 == 0) {
-        printf("%ld Blocks\n", cnt);
+      if ((cnt * sectors_per_io) % 1000000 == 0) {
+        printf("%ld 4KB Blocks\n", cnt * sectors_per_io);
         fflush(stdout);
       }
     }
@@ -227,5 +242,6 @@ int main(int argc, char** argv) {
       return -2;
     }
   }
-  printf("%ld Block in Total!\n", cnt);
+  printf("%ld IO groups, %ld 4KB blocks in total\n", cnt,
+         cnt * sectors_per_io);
 }

@@ -535,7 +535,7 @@ __global__ void persistent_search_kernel_naive_block_multi_query(
         return args.comm->controls + ((bid * Q + slot) * W);
     };
     auto slot_buf = [&]() -> uint8_t* {
-        return args.comm->buffers + (long)(bid * Q + slot) * W * shared::PAGE_SIZE;
+        return args.comm->buffers + (long)(bid * Q + slot) * W * args.io_bytes;
     };
     auto slot_nid = [&]() -> uint32_t* {
         return args.d_neighbors_id + (long)(bid * Q + slot) * aef;
@@ -695,7 +695,7 @@ __global__ void persistent_search_kernel_naive_block_multi_query(
         float* qdata = args.d_all_qdata + (long)s_slot_qid[slot] * args.num_dims;
 
         persistent_merge_data_naive_m128(
-            tile, ltid, slot_buf() + (long)w * shared::PAGE_SIZE, src_node,
+            tile, ltid, slot_buf() + (long)w * args.io_bytes, src_node,
             args.num_chunks, slot_pq(), args.compressed_data,
             args.nodes_per_page, args.node_size, args.data_size,
             args.max_m, args.ef_search,

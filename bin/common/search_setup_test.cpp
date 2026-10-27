@@ -30,6 +30,23 @@ std::filesystem::path write_index(const std::filesystem::path& path,
   return path;
 }
 
+std::filesystem::path write_multisector_index(
+    const std::filesystem::path& path, uint8_t first_value,
+    uint8_t second_value) {
+  std::ofstream out(path, std::ios::binary);
+  std::vector<uint8_t> page(shared::PAGE_SIZE, 0);
+  out.write(reinterpret_cast<const char*>(page.data()), page.size());
+  // Node 0 occupies pages 0--1; node 1 (the entry point) occupies pages 2--3.
+  out.write(reinterpret_cast<const char*>(page.data()), page.size());
+  out.write(reinterpret_cast<const char*>(page.data()), page.size());
+  std::fill(page.begin(), page.end(), first_value);
+  out.write(reinterpret_cast<const char*>(page.data()), page.size());
+  std::fill(page.begin(), page.end(), second_value);
+  out.write(reinterpret_cast<const char*>(page.data()), page.size());
+  require(out.good(), "failed to write multi-sector fixture index");
+  return path;
+}
+
 void expect_page_value(const uint8_t* page, uint8_t expected,
                        const char* label) {
   for (int i = 0; i < shared::PAGE_SIZE; ++i) {
@@ -95,6 +112,17 @@ int main() {
               symlink_index.string(),
           "index discovery should accept symlinked *_disk.index files");
 
+  const auto ef_csv = dir / "query_ef.csv";
+  {
+    std::ofstream out(ef_csv);
+    out << "query_id,source_query_id,ef_search\n"
+        << "1,17,50\n"
+        << "0,11,10\n";
+  }
+  auto query_efs = bin_common::load_query_ef_csv(ef_csv.string(), 2, 2);
+  require(query_efs == std::vector<int>({10, 50, 10, 50}),
+          "query ef CSV should honor query_id order and tile repeats");
+
   auto memory_setup = make_setup(disk_index.string(), memory_index.string());
   auto memory_starter = bin_common::load_starter_page(memory_setup);
   expect_page_value(memory_starter.get(), 0x22,
@@ -104,6 +132,20 @@ int main() {
   spdk_setup.ssd_lists.push_back("0000:00:00.0");
   auto spdk_starter = bin_common::load_starter_page(spdk_setup);
   expect_page_value(spdk_starter.get(), 0x11, "SPDK starter page");
+
+  const auto multisector_index =
+      write_multisector_index(dir / "multisector.index", 0x44, 0x55);
+  auto multisector_setup =
+      make_setup(multisector_index.string(), multisector_index.string());
+  multisector_setup.layout.enter_point = 1;
+  multisector_setup.layout.sectors_per_node = 2;
+  multisector_setup.layout.io_bytes = 2 * shared::PAGE_SIZE;
+  auto multisector_starter =
+      bin_common::load_starter_page(multisector_setup);
+  expect_page_value(multisector_starter.get(), 0x44,
+                    "multi-sector starter first page");
+  expect_page_value(multisector_starter.get() + shared::PAGE_SIZE, 0x55,
+                    "multi-sector starter second page");
 
   std::filesystem::remove_all(dir);
   return 0;

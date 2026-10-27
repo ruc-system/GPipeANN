@@ -67,6 +67,7 @@ std::shared_ptr<IndexLoader> create_mem_loader_sync(
 // submit_task/poll_task; runner_io_context_count is the per-runner IO ctx pool.
 std::shared_ptr<IndexLoader> create_spdk_loader(
     const std::vector<std::string> &ssds, int submit_queue_capacity,
-    int thread_cnt, int task_context_count, int runner_io_context_count);
+    int thread_cnt, int task_context_count, int runner_io_context_count,
+    int64_t io_bytes = PAGE_SIZE);
 
 }  // namespace shared

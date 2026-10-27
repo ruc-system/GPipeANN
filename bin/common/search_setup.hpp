@@ -84,6 +84,9 @@ inline SearchSetup prepare_search_setup(const SharedCliArgs& args) {
 
   setup.pq = std::make_unique<shared::PQSearch>();
   setup.pq->read_data(pq_prefix + "_pivots.bin", pq_prefix + "_compressed.bin");
+  // DiskANN disk metadata may report PQ width as ndims; the query/PQ codebook
+  // dimension is the one search kernels and LUT construction need.
+  setup.layout.num_dims = setup.pq->get_data().dim;
 
   const std::string nav_dir = find_nav_dir(args.index_dir);
   if (!nav_dir.empty()) {
@@ -111,7 +114,10 @@ inline SearchSetup prepare_search_setup(const SharedCliArgs& args) {
 }
 
 inline std::unique_ptr<uint8_t[]> load_starter_page(const SearchSetup& setup) {
-  auto starter = std::make_unique<uint8_t[]>(shared::PAGE_SIZE);
+  const int64_t io_bytes = setup.layout.io_bytes > 0
+                               ? setup.layout.io_bytes
+                               : shared::PAGE_SIZE;
+  auto starter = std::make_unique<uint8_t[]>(static_cast<size_t>(io_bytes));
   const std::string& starter_index_file =
       setup.ssd_lists.empty() ? setup.memory_index_file : setup.index_file;
   FILE* file = std::fopen(starter_index_file.c_str(), "rb");
@@ -120,10 +126,12 @@ inline std::unique_ptr<uint8_t[]> load_starter_page(const SearchSetup& setup) {
     std::exit(1);
   }
 
-  const long page_offset = static_cast<long>(shared::PAGE_SIZE) *
-                           (setup.layout.enter_point /
-                                setup.layout.nodes_per_page +
-                            1);
+  const int first_page = shared::node_first_page(
+      static_cast<int>(setup.layout.enter_point),
+      static_cast<int>(setup.layout.nodes_per_page),
+      static_cast<int>(setup.layout.sectors_per_node));
+  const long page_offset =
+      static_cast<long>(shared::PAGE_SIZE) * (first_page + 1);
   if (std::fseek(file, page_offset, SEEK_SET) != 0) {
     ERROR("Failed to seek starter page in {}", starter_index_file);
     std::fclose(file);
@@ -131,9 +139,9 @@ inline std::unique_ptr<uint8_t[]> load_starter_page(const SearchSetup& setup) {
   }
 
   const size_t bytes_read =
-      std::fread(starter.get(), 1, shared::PAGE_SIZE, file);
+      std::fread(starter.get(), 1, static_cast<size_t>(io_bytes), file);
   std::fclose(file);
-  if (bytes_read != static_cast<size_t>(shared::PAGE_SIZE)) {
+  if (bytes_read != static_cast<size_t>(io_bytes)) {
     ERROR("Failed to read starter page from {}", starter_index_file);
     std::exit(1);
   }

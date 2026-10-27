@@ -3,6 +3,7 @@
 #   ./ae/scripts/prepare.sh
 #   ./ae/scripts/prepare.sh --write
 #   ./ae/scripts/prepare.sh --fusion-index
+#   ./ae/scripts/prepare.sh --no-build --openai-index
 #   ./ae/scripts/prepare.sh --no-build   # check / write only
 set -euo pipefail
 DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,13 +12,15 @@ source "${DIR}/common.sh"
 DO_BUILD=1
 DO_WRITE=0
 DO_FUSION_INDEX=0
+DO_OPENAI_INDEX=0
 for a in "$@"; do
   case "$a" in
     --write) DO_WRITE=1 ;;
     --fusion-index|--fusion_index) DO_FUSION_INDEX=1 ;;
     --no-build) DO_BUILD=0 ;;
+    --openai-index) DO_OPENAI_INDEX=1 ;;
     *)
-      echo "usage: $0 [--no-build] [--write] [--fusion-index]" >&2
+      echo "usage: $0 [--no-build] [--write] [--fusion-index] [--openai-index]" >&2
       exit 1
       ;;
   esac
@@ -25,6 +28,10 @@ done
 
 if [[ "${DO_BUILD}" -eq 1 ]]; then
   "${DIR}/build.sh"
+fi
+
+if [[ "${DO_OPENAI_INDEX}" -eq 1 ]]; then
+  "${DIR}/build_openai1m_index.sh"
 fi
 
 if [[ "${DO_WRITE}" -eq 1 ]]; then

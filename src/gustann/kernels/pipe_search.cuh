@@ -178,7 +178,7 @@ __global__ void update_kernel(float *qdata, uint8_t *buffer, int32_t *request,
                               float *distances, int *found_cnt,
                               int64_t *acc_visited_cnt, uint32_t *neighbor_id,
                               float *neighbor_dist, int nodes_per_page,
-                              int node_len, int data_len, Data *data,
+                              int node_len, int io_bytes, int data_len, Data *data,
                               int qcnt) {
   int buffer_id = blockIdx.x * (blockDim.x / 32) + threadIdx.x / 32;
   if (buffer_id >= qcnt) {
@@ -191,10 +191,14 @@ __global__ void update_kernel(float *qdata, uint8_t *buffer, int32_t *request,
   if (node_u == -1) {
     return;
   }
-  int offset = node_u % nodes_per_page * node_len;
+  int offset =
+      shared::packed_node_byte_off(node_u, nodes_per_page, node_len);
 
-  data_type *buffer_u = (data_type *)(buffer + buffer_id * 4096 + offset);
-  float dist = shared::square_sum_32(src_vec, buffer_u, num_dims);
+  data_type *buffer_u =
+      (data_type *)(buffer + (long)buffer_id * io_bytes + offset);
+  float dist = shared::square_sum_32(
+      src_vec, buffer_u,
+      shared::disk_payload_dims<data_type>(num_dims, data_len));
   shared::retset_push_32(distances + buffer_id * topk, nns + buffer_id * topk,
                          found_cnt[buffer_id], topk, dist, node_u);
   int *buffer_edge = tmp_id + buffer_id * max_m;
@@ -245,15 +249,17 @@ __global__ void update_kernel(float *qdata, uint8_t *buffer, int32_t *request,
 __global__ void get_pq_dist_kernel(uint8_t *buffer, int32_t *request,
                                    float *tmp_dist, int *tmp_id,
                                    PQSearchData *pq_data, int nodes_per_page,
-                                   int node_len, int data_len, int pq_offset,
+                                   int node_len, int io_bytes, int data_len, int pq_offset,
                                    int max_m0) {
   int buffer_id = blockIdx.x;
   int nodeid_u = request[buffer_id];
   if (nodeid_u == -1) {
     return;
   }
-  int offset = nodeid_u % nodes_per_page * node_len + data_len;
-  int *buffer_u = (int *)(buffer + buffer_id * 4096 + offset);
+  int offset =
+      shared::packed_node_byte_off(nodeid_u, nodes_per_page, node_len) +
+      data_len;
+  int *buffer_u = (int *)(buffer + (long)buffer_id * io_bytes + offset);
 
   if (threadIdx.x >= buffer_u[0]) {
     if (threadIdx.x < max_m0) {

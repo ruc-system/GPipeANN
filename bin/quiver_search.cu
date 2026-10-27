@@ -1,5 +1,6 @@
 #include "spdlog/spdlog.h"
 #include <argparse/argparse.hpp>
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
@@ -77,6 +78,7 @@ int main(int argc, char** argv) {
   std::string final_recall_csv;
   std::string result_prefix;
   std::string early_exit_policy_name = "gpruning";
+  std::string query_ef_csv;
 
   bin_common::register_long_only_help(program);
   bin_common::register_shared_base_args(program, shared_args);
@@ -145,6 +147,10 @@ int main(int argc, char** argv) {
       .default_value(std::string("gpruning"))
       .store_into(early_exit_policy_name)
       .help("Quiver early-exit policy: gpruning or none. Default: gpruning.");
+  program.add_argument("--query-ef-csv")
+      .store_into(query_ef_csv)
+      .help("Per-query ef_search CSV with query_id,ef_search columns. "
+            "The maximum ef sizes allocations; repeat tiles the mapping.");
 
   try {
     program.parse_args(argc, argv);
@@ -220,6 +226,34 @@ int main(int argc, char** argv) {
   }
 
   auto setup = bin_common::prepare_search_setup(shared_args);
+  std::vector<int> query_efs;
+  const int* query_efs_ptr = nullptr;
+  if (!query_ef_csv.empty()) {
+    try {
+      const int repeat = std::max(shared_args.repeat, 1);
+      if (setup.queries.count % static_cast<size_t>(repeat) != 0) {
+        throw std::runtime_error("Repeated query count is not divisible by repeat");
+      }
+      const size_t unique_count =
+          setup.queries.count / static_cast<size_t>(repeat);
+      query_efs =
+          bin_common::load_query_ef_csv(query_ef_csv, unique_count, repeat);
+    } catch (const std::exception& err) {
+      std::cerr << err.what() << std::endl;
+      return 1;
+    }
+    const int max_ef = *std::max_element(query_efs.begin(), query_efs.end());
+    if (max_ef > shared_args.ef_search) {
+      std::cout << "[Quiver] raising --ef-search from "
+                << shared_args.ef_search << " to " << max_ef
+                << " to cover per-query ef CSV" << std::endl;
+      shared_args.ef_search = max_ef;
+    }
+    query_efs_ptr = query_efs.data();
+    std::cout << "[Quiver] per-query ef from " << query_ef_csv
+              << " total=" << query_efs.size()
+              << " max_ef=" << max_ef << std::endl;
+  }
   bin_common::GroundTruthData step_recall_gt;
   if (per_step_recall) {
     if (shared_args.ground_truth_file.empty()) {
@@ -271,7 +305,8 @@ int main(int argc, char** argv) {
       loader = shared::create_spdk_loader(
           setup.ssd_lists, spdk_options.submit_queue_capacity, poll_threads,
           spdk_options.task_context_count,
-          spdk_options.runner_io_context_count, runners_per_ssd);
+          spdk_options.runner_io_context_count, runners_per_ssd,
+          setup.layout.io_bytes);
 #else
       return bin_common::fail_without_spdk_support();
 #endif
@@ -279,7 +314,8 @@ int main(int argc, char** argv) {
       spdlog::info("Using debug file backend: index_file={}",
                    setup.memory_index_file);
       loader = shared::create_mem_loader_sync(
-          setup.memory_index_file.c_str(), setup.layout.num_pages);
+          setup.memory_index_file.c_str(), setup.layout.num_pages,
+          setup.layout.io_bytes);
     }
     if (!loader) {
       return 1;
@@ -302,7 +338,8 @@ int main(int argc, char** argv) {
                   recall_threshold,
                   step_recall_csv.c_str()}
             : quiver::PerStepRecallOptions{},
-        early_exit);
+        early_exit,
+        query_efs_ptr);
 
     bin_common::print_recall_report(shared_args, setup);
     bin_common::write_per_query_recall_csv(

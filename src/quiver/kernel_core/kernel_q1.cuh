@@ -8,6 +8,7 @@
 #include "kernel_helpers.cuh"
 #include "policies/dispatch.cuh"
 #include "inkernel_nav.cuh"
+#include "pq_lut.cuh"
 
 namespace quiver {
 
@@ -17,7 +18,7 @@ namespace quiver {
 // Within each query, ALL ready lanes are processed per iteration
 // to avoid lane starvation with fast backends.
 // ================================================================
-template <class Dispatch, class T>
+template <class Dispatch, class T, bool PerQueryEf = false>
 __global__ void persistent_search_kernel(PersistentKernelArgs args)
 {
     extern __shared__ uint8_t shm_pool[];
@@ -41,6 +42,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
 
     __shared__ int32_t lane_req[16];
     __shared__ int     s_query_id;
+    __shared__ int     s_query_ef;
     __shared__ int     s_ready_w;
     __shared__ int32_t snap_st[16];
     __shared__ int32_t snap_nd[16];
@@ -65,7 +67,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                           * PQSearchData::num_pivots * args.num_chunks;
     IOControl* my_ctl   = args.comm->controls + bid * W;
     uint8_t*   my_buf   = args.comm->buffers
-                        + (long)bid * W * shared::PAGE_SIZE;
+                        + (long)bid * W * args.io_bytes;
 
 #ifdef QUIVER_LIGHT_BREAKDOWN
     if (tid == 0) {
@@ -88,10 +90,14 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
         // tid 0 writes qid (or -1 for exit) into s_query_id; broadcast via __syncthreads.
         if (tid == 0) {
             Dispatch::acquire_next_qid_tid0(args, bid, /*slot*/0, &s_query_id);
+            if constexpr (PerQueryEf) {
+                if (s_query_id >= 0) s_query_ef = args.d_query_ef[s_query_id];
+            }
         }
         __syncthreads();
         const int qid = s_query_id;
         if (qid == -1) return;  // Dispatch signaled terminate
+        const int query_ef = PerQueryEf ? s_query_ef : args.ef_search;
 
 #ifdef QUIVER_LIGHT_BREAKDOWN
         const int breakdown_sample_idx = quiver_breakdown_sample_index(
@@ -177,7 +183,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
         int64_t probe_t_nav_done = globaltimer_ns();
 #endif
 
-        args.pq_data->init_query(qdata, args.pq_block_offset);
+        init_slot_pq_lut(args.pq_data, qdata, my_pq);
         __syncthreads();
 
 #ifdef QUIVER_LATENCY_PROBE
@@ -265,7 +271,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
             my_buf, entry,
             args.num_chunks, my_pq, args.compressed_data,
             args.nodes_per_page, args.node_size, args.data_size,
-            args.max_m, args.ef_search,
+            args.max_m, query_ef,
             my_nid, my_ndist, my_ctx,
             mv_pos, mv_id, mv_dist, tmp_id, tmp_dist,
             node_scratch
@@ -283,7 +289,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
             args.num_dims, args.topk,
             my_nns, my_dist, my_fc,
             args.nodes_per_page, args.node_size,
-            args.max_m, args.ef_search,
+            args.max_m, query_ef,
             my_nid, my_ndist, my_ctx);
         if (tid == 0) lane_req[0] = boot_req;
         __syncthreads();
@@ -367,7 +373,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
         if (tid < 32) {
             for (int w = 1; w < W; w++)
                 lane_req[w] = persistent_select_next_no_compact(
-                    args.ef_search, my_nid, my_ctx);
+                    query_ef, my_nid, my_ctx);
         }
         __syncthreads();
 
@@ -496,10 +502,10 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                 if (tid == 0) my_ctl[w].status = IO_IDLE;
 
                 persistent_merge_data(
-                    my_buf + w * shared::PAGE_SIZE, snap_nd[w],
+                    my_buf + w * args.io_bytes, snap_nd[w],
                     args.num_chunks, my_pq, args.compressed_data,
                     args.nodes_per_page, args.node_size, args.data_size,
-                    args.max_m, args.ef_search,
+                    args.max_m, query_ef,
                     my_nid, my_ndist, my_ctx,
                     mv_pos, mv_id, mv_dist, tmp_id, tmp_dist,
                     node_scratch
@@ -513,7 +519,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                     args.num_dims, args.topk,
                     my_nns, my_dist, my_fc,
                     args.nodes_per_page, args.node_size,
-                    args.max_m, args.ef_search,
+                    args.max_m, query_ef,
                     my_nid, my_ndist, my_ctx);
                 if (tid == 0) lane_req[w] = next_req;
                 __syncthreads();
@@ -624,7 +630,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                     if (snap_st[w] != IO_READY &&
                         *(volatile int32_t*)&my_ctl[w].status == IO_IDLE) {
                         lane_req[w] = persistent_select_next_no_compact(
-                            args.ef_search, my_nid, my_ctx);
+                            query_ef, my_nid, my_ctx);
                     }
                 }
             }

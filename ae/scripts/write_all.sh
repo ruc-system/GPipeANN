@@ -32,6 +32,7 @@ if [[ "${mode}" == "all" || "${mode}" == "--4ssd" || "${mode}" == "4ssd" ]]; the
   for name in "${names[@]}"; do
     write_one "${name}"
   done
+  write_one openai1m
 fi
 
 if [[ "${mode}" == "all" || "${mode}" == "--oneshot" || "${mode}" == "oneshot" ]]; then

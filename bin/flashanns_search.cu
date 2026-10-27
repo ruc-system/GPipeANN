@@ -1,5 +1,6 @@
 #include "spdlog/spdlog.h"
 #include <argparse/argparse.hpp>
+#include <algorithm>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -59,6 +60,7 @@ int main(int argc, char** argv) {
   int poll_threads = 6;
   int pipe_width = 2;  // FlashANNS paper default (was 4 in earlier revisions)
   std::string num_blocks_list;
+  std::string query_ef_csv;
 
   bin_common::register_long_only_help(program);
   bin_common::register_shared_base_args(program, shared_args);
@@ -84,6 +86,10 @@ int main(int argc, char** argv) {
       .store_into(pipe_width);
 #endif
   program.add_argument("--num-blocks-list").store_into(num_blocks_list);
+  program.add_argument("--query-ef-csv")
+      .store_into(query_ef_csv)
+      .help("Per-query ef_search CSV with columns query_id,ef_search. "
+            "Buffers use max(ef). Repeat tiles the unique-query list.");
 
   try {
     program.parse_args(argc, argv);
@@ -125,6 +131,28 @@ int main(int argc, char** argv) {
       run_num_blocks, "--num-blocks-list");
 
   auto setup = bin_common::prepare_search_setup(shared_args);
+  std::vector<int> query_efs;
+  const int* query_efs_ptr = nullptr;
+  if (!query_ef_csv.empty()) {
+    const int repeat = std::max(shared_args.repeat, 1);
+    const size_t unique_count =
+        setup.queries.count / static_cast<size_t>(repeat);
+    query_efs = bin_common::load_query_ef_csv(query_ef_csv, unique_count,
+                                              repeat);
+    int max_ef = 0;
+    for (int ef : query_efs) max_ef = std::max(max_ef, ef);
+    if (max_ef > shared_args.ef_search) {
+      std::cout << "[FlashANNS] raising --ef-search from "
+                << shared_args.ef_search << " to " << max_ef
+                << " to cover per-query ef CSV" << std::endl;
+      shared_args.ef_search = max_ef;
+    }
+    query_efs_ptr = query_efs.data();
+    std::cout << "[FlashANNS] per-query ef from " << query_ef_csv
+              << " unique=" << unique_count << " total=" << query_efs.size()
+              << " max_ef=" << max_ef << std::endl;
+  }
+
   auto starter = bin_common::load_starter_page(setup);
   for (const auto& run_nb : run_num_blocks) {
     if (run_num_blocks.size() > 1) {
@@ -152,7 +180,7 @@ int main(int argc, char** argv) {
       loader = shared::create_spdk_loader(
           setup.ssd_lists, spdk_options.submit_queue_capacity, poll_threads,
           spdk_options.task_context_count,
-          spdk_options.runner_io_context_count);
+          spdk_options.runner_io_context_count, setup.layout.io_bytes);
 #else
       return bin_common::fail_without_spdk_support();
 #endif
@@ -160,7 +188,8 @@ int main(int argc, char** argv) {
       spdlog::info("Using debug file backend: index_file={}",
                    setup.memory_index_file);
       loader = shared::create_mem_loader_sync(
-          setup.memory_index_file.c_str(), setup.layout.num_pages);
+          setup.memory_index_file.c_str(), setup.layout.num_pages,
+          setup.layout.io_bytes);
     }
     if (!loader) {
       return 1;
@@ -172,7 +201,8 @@ int main(int argc, char** argv) {
         static_cast<int>(setup.layout.enter_point), starter.get(),
         setup.queries.values.get(), static_cast<int>(setup.queries.count),
         shared_args.topk, shared_args.ef_search, setup.nns.get(),
-        setup.distances.get(), setup.found_counts.get(), shared_args.repeat);
+        setup.distances.get(), setup.found_counts.get(), shared_args.repeat,
+        query_efs_ptr);
 
     bin_common::print_recall_report(shared_args, setup);
   }

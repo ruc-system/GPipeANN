@@ -40,6 +40,7 @@ void PQSearch::cleanup_host() noexcept {
   delete_array_noexcept(host_data.pivots);
   delete_array_noexcept(host_data.pivots_t);
   delete_array_noexcept(host_data.chunk_id);
+  delete_array_noexcept(host_data.chunk_offsets);
   delete_array_noexcept(host_data.compressed_data);
   delete_array_noexcept(host_data.pq_retset);
   host_data.dim = 0;
@@ -52,6 +53,7 @@ void PQSearch::cleanup_device() noexcept {
   cuda_free_noexcept(device_data.pivots);
   cuda_free_noexcept(device_data.pivots_t);
   cuda_free_noexcept(device_data.chunk_id);
+  cuda_free_noexcept(device_data.chunk_offsets);
   cuda_free_noexcept(device_data.compressed_data);
   cuda_free_noexcept(device_data.pq_dists);
   cuda_free_noexcept(device_data.pq_retset);
@@ -97,18 +99,18 @@ void PQSearch::read_data(std::string table_file, std::string vec_file) {
   ASSERT(nr == host_data.dim && nc == 1);
 
   DEBUG("Reading chunk offsets");
-  int *chunk_offsets;
-  read_bin(table_file, nr, nc, basic_offsets[chunk_offsets_index], chunk_offsets);
+  read_bin(table_file, nr, nc, basic_offsets[chunk_offsets_index],
+           host_data.chunk_offsets);
   ASSERT(nr == host_data.num_chunks + 1 && nc == 1);
   host_data.chunk_id = new int[host_data.dim];
   memset(host_data.chunk_id, -1, sizeof(int) * host_data.dim);
   for (int i = 0; i < host_data.num_chunks; i++) {
-    for (int j = chunk_offsets[i]; j < chunk_offsets[i + 1]; j++) {
+    for (int j = host_data.chunk_offsets[i];
+         j < host_data.chunk_offsets[i + 1]; j++) {
       host_data.chunk_id[j] = i;
     }
   }
   delete[] basic_offsets;
-  delete[] chunk_offsets;
   DEBUG("PQ data load ok: dim: {}, num_pts: {}, num_chunks: {}", host_data.dim,
         host_data.num_pts, host_data.num_chunks);
 }
@@ -137,6 +139,8 @@ void PQSearch::init_device(int dim, int num_pts, int num_thread_blocks,
     copy_to_dev(host_data.pivots_t, new_device.pivots_t,
                 (size_t)host_data.num_pivots * host_data.dim);
     copy_to_dev(host_data.chunk_id, new_device.chunk_id, host_data.dim);
+    copy_to_dev(host_data.chunk_offsets, new_device.chunk_offsets,
+                host_data.num_chunks + 1);
 
 #ifdef MEM_PROFILE
     CHECK_CUDA(cudaMemGetInfo(&free_mem, &tot_mem));
@@ -159,6 +163,7 @@ void PQSearch::init_device(int dim, int num_pts, int num_thread_blocks,
     cuda_free_noexcept(new_device.pivots);
     cuda_free_noexcept(new_device.pivots_t);
     cuda_free_noexcept(new_device.chunk_id);
+    cuda_free_noexcept(new_device.chunk_offsets);
     cuda_free_noexcept(new_device.compressed_data);
     cuda_free_noexcept(new_device.pq_dists);
     throw;

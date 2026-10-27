@@ -85,14 +85,16 @@ class TaskRunner {
 
   void init_query(const float *qdata, int _qcnt, int *_nns, float *_dis,
                   int *_found_cnt, int *_start_pt, int _query_base);
+  void set_query_efs(const int *d_query_ef) { d_query_ef_ = d_query_ef; }
   bool update_state();
 
   TaskRunner(int _tid, int _cid_base, int _mini_batch, int _num_dims,
              int _topk, int64_t _num_data, int _max_m0, int _ef_search,
              int _enter_point, uint8_t *_starter, PQSearch *_pq,
-             int nodes_per_page, int node_size, int data_size,
-             DataType data_type, std::shared_ptr<IndexLoader> _loader,
-             NavGraph *_nav, int _pipe_w = 1);
+             int nodes_per_page, int sectors_per_node, int64_t io_bytes,
+             int node_size, int data_size, DataType data_type,
+             std::shared_ptr<IndexLoader> _loader, NavGraph *_nav,
+             int _pipe_w = 1);
 
  public:
   double time_gpu;
@@ -155,7 +157,8 @@ class TaskRunner {
   DataType data_type;
   int mini_batch, num_dims, topk, max_m0, ef_search, aligned_ef;
   int enter_point;
-  int nodes_per_page_, node_size_, data_size_;
+  int nodes_per_page_, sectors_per_node_, node_size_, data_size_;
+  int64_t io_bytes_;
   int tid;
   int tcnt;
   int64_t num_data;
@@ -195,9 +198,8 @@ class TaskRunner {
   uint64_t batch_io_trace_seen_ = 0;
   bool current_batch_has_kept_io_trace_ = false;
 #endif
-#if defined(GUSTANN_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
   int query_base_ = 0;
-#endif
+  const int *d_query_ef_ = nullptr;
 #ifdef QUIVER_LIGHT_BREAKDOWN
   int breakdown_total_batches_ = 0;
   double breakdown_batch_start_time_ = 0.0;

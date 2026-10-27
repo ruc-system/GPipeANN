@@ -96,7 +96,7 @@ __global__ void persistent_search_kernel_barrier(PersistentKernelArgs args)
         return args.comm->controls + ((bid * Q + q) * W);
     };
     auto slot_buf = [&](int q) -> uint8_t* {
-        return args.comm->buffers + (long)(bid * Q + q) * W * shared::PAGE_SIZE;
+        return args.comm->buffers + (long)(bid * Q + q) * W * args.io_bytes;
     };
     auto slot_nid = [&](int q) -> uint32_t* {
         return args.d_neighbors_id + (long)(bid * Q + q) * aef;

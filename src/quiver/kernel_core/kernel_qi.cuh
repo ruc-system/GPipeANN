@@ -12,6 +12,7 @@
 #include "kernel_helpers.cuh"
 #include "policies/dispatch.cuh"
 #include "inkernel_nav.cuh"
+#include "pq_lut.cuh"
 
 namespace quiver {
 
@@ -40,7 +41,7 @@ namespace quiver {
 
 constexpr int QI_MAX_Q = 8;  // compile-time upper bound; runtime Q <= QI_MAX_Q
 
-template <class Dispatch, class T>
+template <class Dispatch, class T, bool PerQueryEf = false>
 __global__ void persistent_search_kernel_qi(PersistentKernelArgs args)
 {
     extern __shared__ uint8_t shm_pool[];
@@ -69,6 +70,7 @@ __global__ void persistent_search_kernel_qi(PersistentKernelArgs args)
     // We keep a single shared handle and index by q when needed.
 
     __shared__ int32_t s_slot_qid[QI_MAX_Q];
+    __shared__ int32_t s_slot_ef[QI_MAX_Q];
     __shared__ int32_t s_slot_entry[QI_MAX_Q];
     // Slot stage encoding:
     //   -1 : EMPTY/DONE (needs new query or kernel exit)
@@ -110,6 +112,7 @@ __global__ void persistent_search_kernel_qi(PersistentKernelArgs args)
         s_kernel_exit = 0;
         for (int q = 0; q < Q; ++q) {
             s_slot_qid[q]   = -1;
+            if constexpr (PerQueryEf) s_slot_ef[q] = 0;
             s_slot_entry[q] = -1;
             s_slot_stage[q] = -1;  // EMPTY
             s_slot_next[q]  = -1;
@@ -151,7 +154,11 @@ __global__ void persistent_search_kernel_qi(PersistentKernelArgs args)
         return args.comm->controls + ((bid * Q + q) * W);
     };
     auto slot_buf = [&](int q) -> uint8_t* {
-        return args.comm->buffers + (long)(bid * Q + q) * W * shared::PAGE_SIZE;
+        return args.comm->buffers + (long)(bid * Q + q) * W * args.io_bytes;
+    };
+    auto slot_ef = [&](int q) -> int {
+        if constexpr (PerQueryEf) return s_slot_ef[q];
+        return args.ef_search;
     };
     auto slot_nid = [&](int q) -> uint32_t* {
         return args.d_neighbors_id + (long)(bid * Q + q) * aef;
@@ -211,6 +218,9 @@ __global__ void persistent_search_kernel_qi(PersistentKernelArgs args)
             if (tid == 0) {
                 qid = atomicAdd(args.d_next_query, 1);
                 s_slot_qid[q] = qid;
+                if constexpr (PerQueryEf) {
+                    if (qid < k_total_queries) s_slot_ef[q] = args.d_query_ef[qid];
+                }
             }
             __syncthreads();
             qid = s_slot_qid[q];
@@ -250,6 +260,9 @@ __global__ void persistent_search_kernel_qi(PersistentKernelArgs args)
             if (tid == 0) {
                 int q_static = StaticDispatch::static_qid_for_slot(args, bid, q);
                 s_slot_qid[q] = q_static;
+                if constexpr (PerQueryEf) {
+                    if (q_static >= 0) s_slot_ef[q] = args.d_query_ef[q_static];
+                }
                 s_slot_stage[q] = (q_static >= 0) ? 0 : -2;  // 0 = BOOT_WAIT
             }
             __syncthreads();
@@ -342,34 +355,7 @@ __global__ void persistent_search_kernel_qi(PersistentKernelArgs args)
         if (tid == 0) probe_t_nav_done = globaltimer_ns();
 #endif
 
-        // Inlined PQSearchData::init_query but targeting slot_pq(q) explicitly,
-        // since the library helper indexes pq_dists by blockIdx.x which doesn't
-        // match Q-interleave per-slot layout (bid * Q + q).
-        {
-            shared::PQSearchData* pqd = args.pq_data;
-            float* dist_vec = slot_pq(q);
-            const int num_pivots = PQSearchData::num_pivots;
-            const int num_chunks = pqd->num_chunks;
-            const int dim = pqd->dim;
-            for (size_t i = tid; i < (size_t)num_pivots * num_chunks; i += blockDim.x) {
-                dist_vec[i] = 0;
-            }
-            for (int i = tid; i < dim; i += blockDim.x) {
-                qdata[i] -= pqd->centroid[i];
-            }
-            __syncthreads();
-            for (int i = 0; i < dim; i++) {
-                int idx = pqd->chunk_id[i];
-                for (int j = tid; j < num_pivots; j += blockDim.x) {
-                    float dd = qdata[i] - pqd->pivots_t[i * num_pivots + j];
-                    dist_vec[idx * num_pivots + j] += dd * dd;
-                }
-                __syncthreads();
-            }
-            for (size_t i = tid; i < (size_t)dim; i += blockDim.x) {
-                qdata[i] += pqd->centroid[i];
-            }
-        }
+        init_slot_pq_lut(args.pq_data, qdata, slot_pq(q));
         __syncthreads();
 
 #ifdef QUIVER_LATENCY_PROBE
@@ -577,7 +563,7 @@ __global__ void persistent_search_kernel_qi(PersistentKernelArgs args)
                 slot_buf(q), s_slot_entry[q],
                 args.num_chunks, slot_pq(q), args.compressed_data,
                 args.nodes_per_page, args.node_size, args.data_size,
-                args.max_m, args.ef_search,
+                args.max_m, slot_ef(q),
                 slot_nid(q), slot_ndist(q), slot_ctx(q),
                 mv_pos, mv_id, mv_dist, tmp_id, tmp_dist,
                 slot_node_scratch(q)
@@ -596,7 +582,7 @@ __global__ void persistent_search_kernel_qi(PersistentKernelArgs args)
                 args.num_dims, args.topk,
                 slot_nns(q), slot_dist(q), slot_fc(q),
                 args.nodes_per_page, args.node_size,
-                args.max_m, args.ef_search,
+                args.max_m, slot_ef(q),
                 slot_nid(q), slot_ndist(q), slot_ctx(q));
             if (tid == 0) s_lane_req[0] = boot_req;
             __syncthreads();
@@ -642,7 +628,7 @@ __global__ void persistent_search_kernel_qi(PersistentKernelArgs args)
             if (tid < 32) {
                 for (int w = 1; w < W; w++)
                     s_lane_req[w] = persistent_select_next_no_compact(
-                        args.ef_search, slot_nid(q), slot_ctx(q));
+                        slot_ef(q), slot_nid(q), slot_ctx(q));
             }
             __syncthreads();
 
@@ -769,10 +755,10 @@ __global__ void persistent_search_kernel_qi(PersistentKernelArgs args)
 #endif
 
             persistent_merge_data(
-                slot_buf(q) + w * shared::PAGE_SIZE, s_snap_nd[w],
+                slot_buf(q) + w * args.io_bytes, s_snap_nd[w],
                 args.num_chunks, slot_pq(q), args.compressed_data,
                 args.nodes_per_page, args.node_size, args.data_size,
-                args.max_m, args.ef_search,
+                args.max_m, slot_ef(q),
                 slot_nid(q), slot_ndist(q), slot_ctx(q),
                 mv_pos, mv_id, mv_dist, tmp_id, tmp_dist,
                 slot_node_scratch(q)
@@ -786,7 +772,7 @@ __global__ void persistent_search_kernel_qi(PersistentKernelArgs args)
                 args.num_dims, args.topk,
                 slot_nns(q), slot_dist(q), slot_fc(q),
                 args.nodes_per_page, args.node_size,
-                args.max_m, args.ef_search,
+                args.max_m, slot_ef(q),
                 slot_nid(q), slot_ndist(q), slot_ctx(q));
             if (tid == 0) s_lane_req[w] = lane_req;
             __syncthreads();
@@ -843,7 +829,7 @@ __global__ void persistent_search_kernel_qi(PersistentKernelArgs args)
                 if (s_snap_st[w] != IO_READY &&
                     *(volatile int32_t*)&ctl[w].status == IO_IDLE) {
                     s_lane_req[w] = persistent_select_next_no_compact(
-                        args.ef_search, slot_nid(q), slot_ctx(q));
+                        slot_ef(q), slot_nid(q), slot_ctx(q));
                 }
             }
         }

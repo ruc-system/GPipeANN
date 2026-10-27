@@ -24,6 +24,15 @@ __inline__ __device__ float warp_reduce_sum(float val) {
 }
 
 template <class T>
+__inline__ __device__ int disk_payload_dims(int query_dims, int payload_bytes) {
+  const int stored = payload_bytes / static_cast<int>(sizeof(T));
+  if (stored > 0 && stored < query_dims) {
+    return stored;
+  }
+  return query_dims;
+}
+
+template <class T>
 __inline__ __device__ float square_sum_32(const float *a, T *b,
                                           const int num_dims) {
   __syncwarp();

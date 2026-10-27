@@ -129,7 +129,7 @@ int main(int argc, char** argv) {
       loader = shared::create_spdk_loader(
           setup.ssd_lists, spdk_options.submit_queue_capacity, poll_threads,
           spdk_options.task_context_count,
-          spdk_options.runner_io_context_count);
+          spdk_options.runner_io_context_count, setup.layout.io_bytes);
 #else
       return bin_common::fail_without_spdk_support();
 #endif
@@ -137,7 +137,8 @@ int main(int argc, char** argv) {
       spdlog::info("Using debug file backend: index_file={}",
                    setup.memory_index_file);
       loader = shared::create_mem_loader_sync(
-          setup.memory_index_file.c_str(), setup.layout.num_pages);
+          setup.memory_index_file.c_str(), setup.layout.num_pages,
+          setup.layout.io_bytes);
     }
     if (!loader) {
       return 1;

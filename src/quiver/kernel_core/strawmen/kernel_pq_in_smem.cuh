@@ -110,7 +110,7 @@ __global__ void persistent_search_kernel_pq_in_smem(PersistentKernelArgs args)
         return args.comm->controls + ((bid * Q + q) * W);
     };
     auto slot_buf = [&](int q) -> uint8_t* {
-        return args.comm->buffers + (long)(bid * Q + q) * W * shared::PAGE_SIZE;
+        return args.comm->buffers + (long)(bid * Q + q) * W * args.io_bytes;
     };
     auto slot_nid = [&](int q) -> uint32_t* {
         return args.d_neighbors_id + (long)(bid * Q + q) * aef;
@@ -459,7 +459,7 @@ __global__ void persistent_search_kernel_pq_in_smem(PersistentKernelArgs args)
             if (tid == 0) ctl[w].status = IO_IDLE;
 
             persistent_merge_data(
-                slot_buf(q) + w * shared::PAGE_SIZE, s_snap_nd[w],
+                slot_buf(q) + w * args.io_bytes, s_snap_nd[w],
                 args.num_chunks, slot_pq_smem(q), args.compressed_data,
                 args.nodes_per_page, args.node_size, args.data_size,
                 args.max_m, args.ef_search,

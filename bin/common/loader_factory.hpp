@@ -25,19 +25,20 @@ namespace bin_common {
 inline std::shared_ptr<shared::IndexLoader> create_index_loader(
     const std::string& index_file, int64_t num_pages,
     const std::vector<std::string>& ssd_lists, int batch, int thread,
-    int pipe_w, int queries_per_block, int runners_per_ssd) {
+    int pipe_w, int queries_per_block, int runners_per_ssd,
+    int64_t io_bytes = shared::PAGE_SIZE) {
   if (!ssd_lists.empty()) {
 #if QUIVER_ENABLE_SPDK
     const auto spdk_options = shared::default_spdk_loader_options();
     INFO("Using SPDK backend (submit_queue_capacity={} task_context_count={} "
-         "runner_io_context_count={} Q={} runners_per_ssd={})",
+         "runner_io_context_count={} Q={} runners_per_ssd={} io_bytes={})",
          spdk_options.submit_queue_capacity, spdk_options.task_context_count,
          spdk_options.runner_io_context_count, queries_per_block,
-         runners_per_ssd);
+         runners_per_ssd, io_bytes);
     return shared::create_spdk_loader(
         ssd_lists, spdk_options.submit_queue_capacity, thread,
         spdk_options.task_context_count, spdk_options.runner_io_context_count,
-        runners_per_ssd);
+        runners_per_ssd, io_bytes);
 #else
     ERROR("This binary was built without SPDK support");
     std::exit(1);
@@ -45,7 +46,16 @@ inline std::shared_ptr<shared::IndexLoader> create_index_loader(
   }
 
   INFO("Using memory backend");
-  return shared::create_mem_loader_sync(index_file.c_str(), num_pages);
+  return shared::create_mem_loader_sync(index_file.c_str(), num_pages,
+                                        io_bytes);
+}
+
+inline std::shared_ptr<shared::IndexLoader> create_index_loader(
+    const std::string& index_file, int64_t num_pages,
+    const std::vector<std::string>& ssd_lists, int batch, int thread,
+    int pipe_w, int queries_per_block, int64_t io_bytes) {
+  return create_index_loader(index_file, num_pages, ssd_lists, batch, thread,
+                             pipe_w, queries_per_block, 1, io_bytes);
 }
 
 inline std::shared_ptr<shared::IndexLoader> create_index_loader(
@@ -53,7 +63,7 @@ inline std::shared_ptr<shared::IndexLoader> create_index_loader(
     const std::vector<std::string>& ssd_lists, int batch, int thread,
     int pipe_w, int queries_per_block) {
   return create_index_loader(index_file, num_pages, ssd_lists, batch, thread,
-                             pipe_w, queries_per_block, 1);
+                             pipe_w, queries_per_block, shared::PAGE_SIZE);
 }
 
 inline std::shared_ptr<shared::IndexLoader> create_index_loader(
@@ -61,7 +71,7 @@ inline std::shared_ptr<shared::IndexLoader> create_index_loader(
     const std::vector<std::string>& ssd_lists, int batch, int thread,
     int pipe_w) {
   return create_index_loader(index_file, num_pages, ssd_lists, batch, thread,
-                             pipe_w, 1, 1);
+                             pipe_w, 1);
 }
 
 }  // namespace bin_common

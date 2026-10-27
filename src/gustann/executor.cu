@@ -602,12 +602,16 @@ HybridExecutor::HybridExecutor(const shared::Layout &layout,
     exit(-1);
   }
 
-  starter_ = std::make_unique<uint8_t[]>(shared::PAGE_SIZE);
-  fseek(input,
-        (long)shared::PAGE_SIZE *
-            (layout_.enter_point / layout_.nodes_per_page + 1),
-        SEEK_SET);
-  fread((char *)starter_.get(), sizeof(char), shared::PAGE_SIZE, input);
+  const int64_t io_bytes =
+      layout_.io_bytes > 0 ? layout_.io_bytes : shared::PAGE_SIZE;
+  starter_ = std::make_unique<uint8_t[]>(static_cast<size_t>(io_bytes));
+  const int first_page = shared::node_first_page(
+      static_cast<int>(layout_.enter_point),
+      static_cast<int>(layout_.nodes_per_page),
+      static_cast<int>(layout_.sectors_per_node));
+  fseek(input, (long)shared::PAGE_SIZE * (first_page + 1), SEEK_SET);
+  fread((char *)starter_.get(), sizeof(char), static_cast<size_t>(io_bytes),
+        input);
 
   fclose(input);
 
@@ -621,14 +625,14 @@ HybridExecutor::HybridExecutor(const shared::Layout &layout,
     int spdk_ctx_cnt = thread_cnt_ * ctx_per_thread_ * pipe_w_;
     loader_ = shared::create_spdk_loader(
         ssds, mini_batch_ * ctx_per_thread_ * pipe_w_, thread_cnt_,
-        spdk_ctx_cnt);
+        spdk_ctx_cnt, 1, layout_.io_bytes);
 #else
     ERROR("This binary was built without SPDK support");
     exit(-1);
 #endif
   } else if (config.use_backend == HybridExecutorConfig::MEMORY) {
     loader_ = shared::create_mem_loader_sync(
-        memory_fpath.c_str(), layout_.num_pages);
+        memory_fpath.c_str(), layout_.num_pages, layout_.io_bytes);
   } else {
     ERROR("Wrong IO Backend setting!");
     exit(-1);
@@ -638,7 +642,8 @@ HybridExecutor::HybridExecutor(const shared::Layout &layout,
 void HybridExecutor::search(const float *qdata, int num_queries, int topk,
                             int ef_search, int *nns, float *distances,
                             int *found_cnt, shared::PQSearch *pq_,
-                            shared::NavGraph *nav_, int repeat) {
+                            shared::NavGraph *nav_, int repeat,
+                            const int *query_efs) {
   struct HostRegistrationGuard {
     const void *ptr = nullptr;
     ~HostRegistrationGuard() {
@@ -659,6 +664,16 @@ void HybridExecutor::search(const float *qdata, int num_queries, int topk,
   } else {
     ERROR("PQ is not inited!");
     throw;
+  }
+
+  int *d_query_ef = nullptr;
+  if (query_efs != nullptr) {
+    CHECK_CUDA(cudaMalloc(&d_query_ef, sizeof(int) * num_queries));
+    CHECK_CUDA(cudaMemcpy(d_query_ef, query_efs,
+                          sizeof(int) * num_queries,
+                          cudaMemcpyHostToDevice));
+    INFO("GustANN per-query ef enabled for {} queries (allocation ef={})",
+         num_queries, ef_search);
   }
 
   if (pipe_w_ > 1) {
@@ -701,8 +716,10 @@ void HybridExecutor::search(const float *qdata, int num_queries, int topk,
           threadid, threadid * ctx_per_thread_ + i, mini_batch_,
           (int)layout_.num_dims, topk, layout_.num_data, (int)layout_.max_m0,
           ef_search, (int)layout_.enter_point, starter_.get(), pq_,
-          (int)layout_.nodes_per_page, (int)layout_.node_size,
+          (int)layout_.nodes_per_page, (int)layout_.sectors_per_node,
+          layout_.io_bytes, (int)layout_.node_size,
           (int)layout_.data_size, data_type_, loader_, nav_, pipe_w_));
+      tasks.back()->set_query_efs(d_query_ef);
 #ifdef QUIVER_LIGHT_BREAKDOWN
       const int total_batches =
           (num_queries + mini_batch_ - 1) / mini_batch_;
@@ -852,6 +869,7 @@ void HybridExecutor::search(const float *qdata, int num_queries, int topk,
                         all_probe_traces, all_batch_io_tail_cases,
 #endif
                         io_stats);
+  if (d_query_ef) CHECK_CUDA(cudaFree(d_query_ef));
   CHECK_CUDA(cudaDeviceSynchronize());
 }
 

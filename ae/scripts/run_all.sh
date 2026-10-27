@@ -31,21 +31,23 @@ if [[ -n "${AE_RUN_ID}" ]]; then
   fi
 fi
 
-ALL_FIGS=(latency_qps io_latency e2e fusion ablation q_sensitivity)
+ALL_FIGS=(latency_qps io_latency e2e fusion ablation q_sensitivity openai1m zipf)
 declare -A PAPER_FIGURE=(
   [latency_qps]=1 [io_latency]=3 [e2e]=5
   [fusion]=6 [ablation]=7 [q_sensitivity]=8
+  [openai1m]=openai1m_zipf [zipf]=openai1m_zipf
 )
 
 selected=()
 for name in "${ALL_FIGS[@]}"; do
-  if [[ "${want}" == "all" || "${want}" == "${name}" || "${want}" == "fig_${name}.sh" ]]; then
+  if [[ "${want}" == "all" || "${want}" == "${name}" || "${want}" == "fig_${name}.sh" ||
+        ( "${want}" == "openai_zipf" && ( "${name}" == "openai1m" || "${name}" == "zipf" ) ) ]]; then
     selected+=("${name}")
   fi
 done
 if [[ "${#selected[@]}" -eq 0 ]]; then
   echo "unknown experiment: ${want}" >&2
-  echo "accepted: all ${ALL_FIGS[*]}" >&2
+  echo "accepted: all openai_zipf ${ALL_FIGS[*]}" >&2
   exit 1
 fi
 
@@ -129,8 +131,12 @@ for name in "${selected[@]}"; do
   echo
   echo "===== [${i}/${total}] ${name} -> paper Figure ${PAPER_FIGURE[${name}]} (AE_SCALE=${AE_SCALE:-1b}) ====="
   step_started="$(date +%s)"
+  runner="${DIR}/fig_${name}.sh"
+  if [[ "${name}" == openai1m || "${name}" == zipf ]]; then
+    runner="${DIR}/run_${name}.sh"
+  fi
   if [[ -n "${AE_DEBUG_ROOT:-}" ]]; then
-    if "${DIR}/fig_${name}.sh"; then
+    if "${runner}"; then
       echo "kept debug attempt under ${AE_DEBUG_ROOT}/${name}/runs/${AE_DEBUG_RUN_ID}"
       if find "${AE_DEBUG_ROOT}/${name}/runs/${AE_DEBUG_RUN_ID}" -name failed_points.tsv -type f -size +0c -print -quit | grep -q .; then
         failures+=("${name}:skipped-points")
@@ -141,7 +147,7 @@ for name in "${selected[@]}"; do
       echo "WARNING: ${name} failed rc=${rc}; debug history was kept; continuing." >&2
     fi
   else
-    if AE_OUTPUT_ROOT="${stage_root}" "${DIR}/fig_${name}.sh"; then
+    if AE_OUTPUT_ROOT="${stage_root}" "${runner}"; then
       status=complete
       if find "${stage_root}/${name}" -name failed_points.tsv -type f -size +0c -print -quit | grep -q .; then
         status=partial

@@ -19,6 +19,7 @@ struct PQSearchData {
   float *pivots = nullptr;          // num_pivots * dim
   float *pivots_t = nullptr;        // dim * num_pivots
   int *chunk_id = nullptr;          // dim
+  int *chunk_offsets = nullptr;     // num_chunks + 1
   uint8_t *compressed_data = nullptr;  // num_pts * num_chunks
   float *pq_dists = nullptr;        // num_blocks * num_pivots * num_chunks
   PQData *pq_retset = nullptr;

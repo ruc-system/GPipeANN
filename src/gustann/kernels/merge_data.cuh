@@ -11,11 +11,13 @@ using shared::Data;
 using shared::PQSearchData;
 using shared::lower_bound;
 
+template <bool PerQueryEf = false>
 __global__ void __launch_bounds__(128, 14) merge_data_kernel(
     uint8_t *buffer, int32_t *request, int num_chunks, float *pq_dists,
-    uint8_t *compressed_data, int nodes_per_page, int node_len, int data_len,
+    uint8_t *compressed_data, int nodes_per_page, int io_bytes,
+    int node_len, int data_len,
     int pq_offset, const int max_m, const int ef_search, uint32_t *neighbor_id,
-    float *neighbor_dist, Data *data
+    float *neighbor_dist, Data *data, const int *d_query_ef
 #ifdef GUSTANN_LATENCY_PROBE
     ,
     GustannProbeQueryTrace *probe_traces, int *probe_active_samples,
@@ -29,6 +31,7 @@ __global__ void __launch_bounds__(128, 14) merge_data_kernel(
   if (nodeid_u == -1) {
     return;
   }
+  const int query_ef = PerQueryEf ? d_query_ef[bid] : ef_search;
 
 #ifdef GUSTANN_LATENCY_PROBE
   int probe_sample_idx = -1;
@@ -63,8 +66,10 @@ __global__ void __launch_bounds__(128, 14) merge_data_kernel(
   int offset = (max_m + ef_search + 31) / 32 * 32 * bid;
   Data &ctx = data[bid];
   int sz = ctx.size;
-  int edge_offset = nodeid_u % nodes_per_page * node_len + data_len;
-  int *buffer_u = (int *)(buffer + bid * 4096 + edge_offset);
+  int edge_offset =
+      shared::packed_node_byte_off(nodeid_u, nodes_per_page, node_len) +
+      data_len;
+  int *buffer_u = (int *)(buffer + (long)bid * io_bytes + edge_offset);
 
   for (int i = tid; i < sz; i += blockDim.x) {
     tmp_id[i] = neighbor_id[offset + i];
@@ -229,7 +234,7 @@ __global__ void __launch_bounds__(128, 14) merge_data_kernel(
   }
   __syncthreads();
 
-  int target = min(sz + deg, 2 * ef_search);
+  int target = min(sz + deg, 2 * query_ef);
   for (int i = tid; i < target; i += blockDim.x) {
     neighbor_id[offset + i] = mv_id[i];
     neighbor_dist[offset + i] = mv_dist[i];
@@ -252,7 +257,8 @@ __global__ void unify_kernel(float *qdata, uint8_t *buffer, int32_t *request,
                              const int ef_search, const int topk, int *nns,
                              float *distances, int *found_cnt,
                              uint32_t *neighbor_id, float *neighbor_dist,
-                             int nodes_per_page, int node_len, int data_len,
+                             int nodes_per_page, int io_bytes, int node_len,
+                             int data_len,
                              Data *data, int qcnt) {
   int bid = blockIdx.x * (blockDim.x / 32) + threadIdx.x / 32;
   if (bid >= qcnt) {
@@ -266,10 +272,12 @@ __global__ void unify_kernel(float *qdata, uint8_t *buffer, int32_t *request,
   if (node_u == -1) {
     return;
   }
-  int buffer_offset = node_u % nodes_per_page * node_len;
+  int buffer_offset =
+      shared::packed_node_byte_off(node_u, nodes_per_page, node_len);
 
-  T *buffer_u = (T *)(buffer + bid * 4096 + buffer_offset);
-  float dist = shared::square_sum_32(src_vec, buffer_u, num_dims);
+  T *buffer_u = (T *)(buffer + (long)bid * io_bytes + buffer_offset);
+  float dist = shared::square_sum_32(
+      src_vec, buffer_u, shared::disk_payload_dims<T>(num_dims, data_len));
   shared::retset_push_32(distances + bid * topk, nns + bid * topk,
                          found_cnt[bid], topk, dist, node_u);
 

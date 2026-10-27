@@ -71,10 +71,21 @@ class SpdkIOImpl : public IndexLoader {
   void submit_task(const std::vector<IoRequest> &req, int tid,
                    int cid) override {
     io_stats_record_enqueued(stats_.get(), req.size());
+    if (io_bytes_ == PAGE_SIZE) {
+      for (auto [blk, dst] : req) {
+        const long logical_block = static_cast<long>(blk) + block_offset_;
+        const int ssd = logical_block % num_ssd;
+        const long off = base_lba_ + logical_block / num_ssd;
+        submit_queue[ssd]->push(Req(cid, off, dst), tid);
+      }
+      ready[cid].fetch_add(req.size());
+      return;
+    }
     for (auto [blk, dst] : req) {
-      const long logical_block = static_cast<long>(blk) + block_offset_;
-      int ssd = logical_block % num_ssd;
-      long off = base_lba_ + logical_block / num_ssd;
+      int ssd = 0;
+      long off = 0;
+      map_index_page_to_ssd(static_cast<long>(blk), io_bytes_, num_ssd,
+                            base_lba_, block_offset_, &ssd, &off);
       submit_queue[ssd]->push(Req(cid, off, dst), tid);
     }
     ready[cid].fetch_add(req.size());
@@ -84,11 +95,22 @@ class SpdkIOImpl : public IndexLoader {
   void submit_traced_task(
       const std::vector<TracedIoRequest>& req, int tid, int cid) override {
     io_stats_record_enqueued(stats_.get(), req.size());
+    if (io_bytes_ == PAGE_SIZE) {
+      for (const auto& r : req) {
+        const long logical_block =
+            static_cast<long>(r.block_id) + block_offset_;
+        const int ssd = logical_block % num_ssd;
+        const long off = base_lba_ + logical_block / num_ssd;
+        submit_queue[ssd]->push(Req(cid, off, r.dest, r.complete_ns), tid);
+      }
+      ready[cid].fetch_add(req.size());
+      return;
+    }
     for (const auto& r : req) {
-      const long logical_block =
-          static_cast<long>(r.block_id) + block_offset_;
-      int ssd = logical_block % num_ssd;
-      long off = base_lba_ + logical_block / num_ssd;
+      int ssd = 0;
+      long off = 0;
+      map_index_page_to_ssd(static_cast<long>(r.block_id), io_bytes_, num_ssd,
+                            base_lba_, block_offset_, &ssd, &off);
       submit_queue[ssd]->push(Req(cid, off, r.dest, r.complete_ns), tid);
     }
     ready[cid].fetch_add(req.size());
@@ -99,11 +121,22 @@ class SpdkIOImpl : public IndexLoader {
 
   void submit_direct(const std::vector<DirectIoRequest>& reqs, int tid) override {
     io_stats_record_enqueued(stats_.get(), reqs.size());
+    if (io_bytes_ == PAGE_SIZE) {
+      for (auto& r : reqs) {
+        const long logical_block =
+            static_cast<long>(r.block_id) + block_offset_;
+        const int ssd = logical_block % num_ssd;
+        const long off = base_lba_ + logical_block / num_ssd;
+        submit_queue[ssd]->push(
+            Req(off, r.dest, r.status_ptr, r.done_value), tid);
+      }
+      return;
+    }
     for (auto& r : reqs) {
-      const long logical_block =
-          static_cast<long>(r.block_id) + block_offset_;
-      int ssd = logical_block % num_ssd;
-      long off = base_lba_ + logical_block / num_ssd;
+      int ssd = 0;
+      long off = 0;
+      map_index_page_to_ssd(static_cast<long>(r.block_id), io_bytes_, num_ssd,
+                            base_lba_, block_offset_, &ssd, &off);
       submit_queue[ssd]->push(Req(off, r.dest, r.status_ptr, r.done_value), tid);
     }
   }
@@ -118,7 +151,7 @@ class SpdkIOImpl : public IndexLoader {
 
   void init(const std::vector<std::string> &ssds, int submit_queue_capacity,
             int thread_cnt, int task_context_count,
-            int runner_io_context_count) {
+            int runner_io_context_count, int64_t io_bytes) {
     spdk = get_or_create_shared_spdk_wrapper(ssds);
     ready = new std::atomic<int>[task_context_count];
     for (int i = 0; i < task_context_count; i++) {
@@ -127,6 +160,7 @@ class SpdkIOImpl : public IndexLoader {
     num_ssd = ssds.size();
     base_lba_ = spdk_base_lba_from_env();
     block_offset_ = spdk_block_offset_from_env();
+    io_bytes_ = io_bytes > 0 ? io_bytes : PAGE_SIZE;
     runner_io_context_count_ = runner_io_context_count;
     if (runner_io_context_count_ < 1) {
       throw std::runtime_error(
@@ -205,6 +239,7 @@ class SpdkIOImpl : public IndexLoader {
   int num_ssd;
   long base_lba_ = 0;
   long block_offset_ = 0;
+  int64_t io_bytes_ = PAGE_SIZE;
   int runner_io_context_count_ = 1024;
   std::shared_ptr<spdk_wrapper::SpdkWrapper> spdk;
   std::vector<MPSCQueue<Req> *> submit_queue;
@@ -294,7 +329,7 @@ class SpdkIOImpl : public IndexLoader {
 
   static bool submit(Ctx *ctx) {
     int ret = ctx->ctx->spdk->TrySubmitReadCommand(
-        ctx->buffer, PG_SIZE, ctx->r, callback, ctx, ctx->ns_id, ctx->qp_id);
+        ctx->buffer, ctx->ctx->io_bytes_, ctx->r, callback, ctx, ctx->ns_id, ctx->qp_id);
     if (ret != 0) {
       if (ret == -ENOMEM) {
         io_stats_record_submit_backpressure(ctx->ctx->stats_.get());
@@ -502,10 +537,11 @@ std::shared_ptr<IndexLoader> create_spdk_loader(const std::vector<std::string> &
                                                 int submit_queue_capacity,
                                                 int thread_cnt,
                                                 int task_context_count,
-                                                int runner_io_context_count) {
+                                                int runner_io_context_count,
+                                                int64_t io_bytes) {
   std::shared_ptr<SpdkIOImpl> spdk_io = std::make_shared<SpdkIOImpl>();
   spdk_io->init(ssds, submit_queue_capacity, thread_cnt, task_context_count,
-                runner_io_context_count);
+                runner_io_context_count, io_bytes);
   return spdk_io;
 }
 

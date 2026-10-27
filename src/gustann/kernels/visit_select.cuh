@@ -13,7 +13,8 @@ __global__ void visit_exact_dist_kernel(float *qdata, uint8_t *buffer,
                                         int32_t *request, const int num_dims,
                                         const int topk, int *nns,
                                         float *distances, int *found_cnt,
-                                        int nodes_per_page, int node_len,
+                                        int nodes_per_page, int io_bytes,
+                                        int node_len,
                                         int data_len, int qcnt) {
   int bid = blockIdx.x * (blockDim.x / 32) + threadIdx.x / 32;
   if (bid >= qcnt || request[bid] == -1) {
@@ -23,13 +24,14 @@ __global__ void visit_exact_dist_kernel(float *qdata, uint8_t *buffer,
   int tid = threadIdx.x % 32;
   (void)tid;
 
-  int buffer_offset = request[bid] % nodes_per_page * node_len;
-  T *buffer_u = (T *)(buffer + bid * 4096 + buffer_offset);
-  float dist =
-      shared::square_sum_32(qdata + num_dims * bid, buffer_u, num_dims);
+  int buffer_offset = shared::packed_node_byte_off(
+      request[bid], nodes_per_page, node_len);
+  T *buffer_u = (T *)(buffer + (long)bid * io_bytes + buffer_offset);
+  float dist = shared::square_sum_32(
+      qdata + num_dims * bid, buffer_u,
+      shared::disk_payload_dims<T>(num_dims, data_len));
   shared::retset_push_32(distances + bid * topk, nns + bid * topk,
                          found_cnt[bid], topk, dist, request[bid]);
-  (void)data_len;
 }
 
 __global__ void clamp_ctx_size_kernel(Data *data, int max_size, int qcnt) {
@@ -144,15 +146,18 @@ __global__ void select_next_spe_kernel(const int max_m, const int ef_search,
   __syncwarp();
 }
 
+template <bool PerQueryEf = false>
 __global__ void pipe_select_next_kernel(const int max_m, const int ef_search,
                                         uint32_t *neighbor_id,
                                         float *neighbor_dist, Data *data,
-                                        int32_t *request, int qcnt) {
+                                        int32_t *request, int qcnt,
+                                        const int *d_query_ef) {
   int bid = blockIdx.x * (blockDim.x / 32) + threadIdx.x / 32;
   if (bid >= qcnt) {
     return;
   }
   int tid = threadIdx.x % 32;
+  const int query_ef = PerQueryEf ? d_query_ef[bid] : ef_search;
 
   int offset = (max_m + ef_search + 31) / 32 * 32 * bid;
   Data &ctx = data[bid];
@@ -201,26 +206,27 @@ __global__ void pipe_select_next_kernel(const int max_m, const int ef_search,
   id = __shfl_sync(0xffffffff, id, 0);
 
   if (tid == 0) {
-    if (id >= ef_search || id >= sz) {
+    if (id >= query_ef || id >= sz) {
       request[bid] = -1;
     } else {
       request[bid] = neighbor_id[offset + id] & 0x7fffffff;
       neighbor_id[offset + id] |= 0x80000000u;
     }
-    ctx.size = min(sz, ef_search);
+    ctx.size = min(sz, query_ef);
   }
 }
 
-template <class T>
+template <class T, bool PerQueryEf = false>
 __global__ void pipe_visit_select_kernel(float *qdata, uint8_t *buffer,
                                          int32_t *request, const int num_dims,
                                          const int topk, int *nns,
                                          float *distances, int *found_cnt,
-                                         int nodes_per_page, int node_len,
+                                         int nodes_per_page, int io_bytes,
+                                         int node_len,
                                          const int max_m, const int ef_search,
                                          uint32_t *neighbor_id,
                                          float *neighbor_dist, Data *data,
-                                         int qcnt
+                                         int qcnt, const int *d_query_ef
 #ifdef GUSTANN_LATENCY_PROBE
                                          ,
                                          GustannProbeQueryTrace *probe_traces,
@@ -233,6 +239,7 @@ __global__ void pipe_visit_select_kernel(float *qdata, uint8_t *buffer,
     return;
   }
   int tid = threadIdx.x % 32;
+  const int query_ef = PerQueryEf ? d_query_ef[bid] : ef_search;
 
 #ifdef GUSTANN_LATENCY_PROBE
   int probe_sample_idx = -1;
@@ -247,10 +254,14 @@ __global__ void pipe_visit_select_kernel(float *qdata, uint8_t *buffer,
 #endif
 
   if (request[bid] != -1) {
-    int buffer_offset = request[bid] % nodes_per_page * node_len;
-    T *buffer_u = (T *)(buffer + bid * 4096 + buffer_offset);
-    float dist =
-        shared::square_sum_32(qdata + num_dims * bid, buffer_u, num_dims);
+    int buffer_offset = shared::packed_node_byte_off(
+        request[bid], nodes_per_page, node_len);
+    T *buffer_u = (T *)(buffer + (long)bid * io_bytes + buffer_offset);
+    const int payload_bytes =
+        node_len - (max_m + 1) * static_cast<int>(sizeof(uint32_t));
+    float dist = shared::square_sum_32(
+        qdata + num_dims * bid, buffer_u,
+        shared::disk_payload_dims<T>(num_dims, payload_bytes));
     shared::retset_push_32(distances + bid * topk, nns + bid * topk,
                            found_cnt[bid], topk, dist, request[bid]);
   }
@@ -309,13 +320,13 @@ __global__ void pipe_visit_select_kernel(float *qdata, uint8_t *buffer,
   id = __shfl_sync(0xffffffff, id, 0);
 
   if (tid == 0) {
-    if (id >= ef_search || id >= sz) {
+    if (id >= query_ef || id >= sz) {
       request[bid] = -1;
     } else {
       request[bid] = neighbor_id[offset + id] & 0x7fffffff;
       neighbor_id[offset + id] |= 0x80000000u;
     }
-    ctx.size = min(sz, ef_search);
+    ctx.size = min(sz, query_ef);
 #ifdef GUSTANN_LATENCY_PROBE
     if (probe_sample_idx >= 0 &&
         probe_sample_idx < GUSTANN_PROBE_MAX_SAMPLES) {

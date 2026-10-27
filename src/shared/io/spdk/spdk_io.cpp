@@ -86,10 +86,24 @@ class SpdkIOImpl : public IndexLoader {
     io_stats_record_enqueued(stats_.get(), req.size());
     auto now_ns = std::chrono::duration<uint64_t, std::nano>(
         std::chrono::steady_clock::now().time_since_epoch()).count();
+    if (io_bytes_ == PAGE_SIZE) {
+      for (auto [blk, dst] : req) {
+        const long logical_block = static_cast<long>(blk) + block_offset_;
+        const int ssd = logical_block % num_ssd;
+        const long off = base_lba_ + logical_block / num_ssd;
+        const int rid = route_runner(off);
+        Req rq(cid, off, dst);
+        rq.enqueue_ns = now_ns;
+        submit_queue[ssd][rid]->push(rq, tid);
+      }
+      ready[cid].fetch_add(req.size());
+      return;
+    }
     for (auto [blk, dst] : req) {
-      const long logical_block = static_cast<long>(blk) + block_offset_;
-      int ssd = logical_block % num_ssd;
-      long off = base_lba_ + logical_block / num_ssd;
+      int ssd = 0;
+      long off = 0;
+      map_index_page_to_ssd(static_cast<long>(blk), io_bytes_, num_ssd,
+                            base_lba_, block_offset_, &ssd, &off);
       int rid = route_runner(off);
       Req rq(cid, off, dst);
       rq.enqueue_ns = now_ns;
@@ -107,11 +121,24 @@ class SpdkIOImpl : public IndexLoader {
       now_ns = std::chrono::duration<uint64_t, std::nano>(
           std::chrono::steady_clock::now().time_since_epoch()).count();
     }
+    if (io_bytes_ == PAGE_SIZE) {
+      for (auto& r : reqs) {
+        const long logical_block =
+            static_cast<long>(r.block_id) + block_offset_;
+        const int ssd = logical_block % num_ssd;
+        const long off = base_lba_ + logical_block / num_ssd;
+        const int rid = route_runner(off);
+        Req rq(off, r.dest, r.status_ptr, r.done_value, r.complete_ns);
+        rq.enqueue_ns = now_ns;
+        submit_queue[ssd][rid]->push(rq, tid);
+      }
+      return;
+    }
     for (auto& r : reqs) {
-      const long logical_block =
-          static_cast<long>(r.block_id) + block_offset_;
-      int ssd = logical_block % num_ssd;
-      long off = base_lba_ + logical_block / num_ssd;
+      int ssd = 0;
+      long off = 0;
+      map_index_page_to_ssd(static_cast<long>(r.block_id), io_bytes_, num_ssd,
+                            base_lba_, block_offset_, &ssd, &off);
       int rid = route_runner(off);
       Req rq(off, r.dest, r.status_ptr, r.done_value, r.complete_ns);
       rq.enqueue_ns = now_ns;
@@ -129,7 +156,7 @@ class SpdkIOImpl : public IndexLoader {
 
   void init(const std::vector<std::string> &ssds, int submit_queue_capacity,
             int thread_cnt, int task_context_count,
-            int runner_io_context_count, int runners_per_ssd) {
+            int runner_io_context_count, int runners_per_ssd, int64_t io_bytes) {
     spdk = get_or_create_shared_spdk_wrapper(ssds);
     ready = new std::atomic<int>[task_context_count];
     for (int i = 0; i < task_context_count; i++) {
@@ -145,6 +172,11 @@ class SpdkIOImpl : public IndexLoader {
           std::to_string(runner_io_context_count_));
     }
     runners_per_ssd_ = runners_per_ssd;
+    io_bytes_ = io_bytes > 0 ? io_bytes : PAGE_SIZE;
+    if (io_bytes_ % PAGE_SIZE != 0) {
+      throw std::runtime_error("io_bytes must be a multiple of 4096, got " +
+                               std::to_string(io_bytes_));
+    }
     if (runners_per_ssd_ < 1 || runners_per_ssd_ > 32) {
       throw std::runtime_error(
           "runners_per_ssd must be in [1,32], got " +
@@ -239,6 +271,7 @@ class SpdkIOImpl : public IndexLoader {
   long base_lba_ = 0;
   long block_offset_ = 0;
   int runners_per_ssd_ = 1;
+  int64_t io_bytes_ = PAGE_SIZE;
   int runner_io_context_count_ = 1024;
   bool spdk_diag_enabled_ = false;
   int max_retry_on_error_ = 256;
@@ -372,7 +405,7 @@ class SpdkIOImpl : public IndexLoader {
 
   static bool submit(Ctx *ctx) {
     int ret = ctx->ctx->spdk->TrySubmitReadCommand(
-        ctx->buffer, PG_SIZE, ctx->r, callback, ctx, ctx->ns_id, ctx->qp_id);
+        ctx->buffer, ctx->ctx->io_bytes_, ctx->r, callback, ctx, ctx->ns_id, ctx->qp_id);
     if (ret != 0) {
       if (ret == -ENOMEM) {
         io_stats_record_submit_backpressure(ctx->ctx->stats_.get());
@@ -778,10 +811,11 @@ std::shared_ptr<IndexLoader> create_spdk_loader(const std::vector<std::string> &
                                                 int thread_cnt,
                                                 int task_context_count,
                                                 int runner_io_context_count,
-                                                int runners_per_ssd) {
+                                                int runners_per_ssd,
+                                                int64_t io_bytes) {
   std::shared_ptr<SpdkIOImpl> spdk_io = std::make_shared<SpdkIOImpl>();
   spdk_io->init(ssds, submit_queue_capacity, thread_cnt, task_context_count,
-                runner_io_context_count, runners_per_ssd);
+                runner_io_context_count, runners_per_ssd, io_bytes);
   return spdk_io;
 }
 

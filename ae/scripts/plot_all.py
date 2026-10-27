@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Redraw the six submitted figures from normalized CSVs or raw search logs.
+"""Redraw the submitted figures and OpenAI1M/Zipf comparison from AE results.
 
 Point the canonical plotter at the reviewer result tree or one completed
 figure directory:
@@ -1151,11 +1151,14 @@ def main() -> int:
                 points.extend(load_tree(e2e_source))
         jobs.append((number, name, fn, source, points))
         all_points.extend(points)
-    if not jobs:
+    openai_zipf = all((args.src / name / "metrics.csv").is_file()
+                      for name in ("openai1m", "zipf"))
+    if not jobs and not openai_zipf:
         print(f"no completed figure results under {args.src}", file=sys.stderr)
         return 1
-    print(f"parsed {len(all_points)} sweep points from "
-          f"{len(jobs)} completed figure result(s)  (mode={args.mode})")
+    if jobs:
+        print(f"parsed {len(all_points)} sweep points from "
+              f"{len(jobs)} completed figure result(s)  (mode={args.mode})")
 
     grid_points: list[Point] = []
     if args.quiver_grid is not None:
@@ -1190,6 +1193,16 @@ def main() -> int:
             n += 1
         else:
             print(f"skip Figure {number} ({name}): no data for it under {args.src}")
+    if openai_zipf:
+        from plot_openai_zipf import main as plot_openai_zipf
+        rc = plot_openai_zipf([
+            "--openai", str(args.src / "openai1m/metrics.csv"),
+            "--zipf", str(args.src / "zipf/metrics.csv"),
+            "--output", str(args.out_dir / "openai1m_zipf.pdf"),
+        ])
+        if rc != 0:
+            return rc
+        n += 1
     return 0 if n else 2
 
 

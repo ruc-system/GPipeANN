@@ -40,7 +40,8 @@ class HybridExecutor {
               int *nns, float *distances, int *found_cnt,
               shared::PQSearch *pq = nullptr,
               shared::NavGraph *nav = nullptr,
-              int repeat = 1);
+              int repeat = 1,
+              const int *query_efs = nullptr);
 
  private:
   shared::Layout layout_;

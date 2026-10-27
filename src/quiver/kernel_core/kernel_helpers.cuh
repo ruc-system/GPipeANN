@@ -23,6 +23,7 @@ using shared::PQSearchData;
 using shared::lower_bound;
 using shared::retset_push_32;
 using shared::square_sum_32;
+using shared::disk_payload_dims;
 
 __device__ __forceinline__ void copy_node_to_shm(
     const uint8_t* src, uint8_t* dst, int node_size)
@@ -369,7 +370,10 @@ __device__ int32_t persistent_visit_select(
     if (node_id != -1) {
         int buf_off = node_id % nodes_per_page * node_size;
         T* buffer_u = (T*)(buffer + buf_off);
-        float dist = square_sum_32(qdata, buffer_u, num_dims);
+        const int payload_bytes =
+            node_size - (max_m + 1) * static_cast<int>(sizeof(uint32_t));
+        float dist = square_sum_32(
+            qdata, buffer_u, disk_payload_dims<T>(num_dims, payload_bytes));
         int fc = found_cnt[0];
         if (fc < topk || dist < distances[topk - 1]) {
             if (topk <= 32) {
@@ -474,7 +478,10 @@ __device__ int32_t persistent_visit_select_dualwarp(
         }
     } else if (tid < 64 && node_id != -1) {
         T* buffer_u = (T*)node_data;
-        float dist = square_sum_32(qdata, buffer_u, num_dims);
+        const int payload_bytes =
+            node_size - (max_m + 1) * static_cast<int>(sizeof(uint32_t));
+        float dist = square_sum_32(
+            qdata, buffer_u, disk_payload_dims<T>(num_dims, payload_bytes));
         int fc = found_cnt[0];
         if (fc < topk || dist < distances[topk - 1]) {
             if (topk <= 32) {
@@ -486,6 +493,18 @@ __device__ int32_t persistent_visit_select_dualwarp(
     }
 
     return next;
+}
+
+__device__ __forceinline__ int persistent_query_ef(
+    const PersistentKernelArgs& args, int qid)
+{
+    int ef = args.ef_search;
+    if (args.d_query_ef != nullptr && qid >= 0 && qid < args.total_queries) {
+        ef = args.d_query_ef[qid];
+    }
+    if (ef < 1) ef = 1;
+    if (ef > args.ef_search) ef = args.ef_search;
+    return ef;
 }
 
 __device__ int32_t persistent_select_next_no_compact(

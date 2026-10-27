@@ -32,6 +32,7 @@ void run_persistent_search(
     int* nns,
     float* distances,
     int* found_cnt,
-    int repeat = 1);
+    int repeat = 1,
+    const int* query_efs = nullptr);
 
 } // namespace flashanns

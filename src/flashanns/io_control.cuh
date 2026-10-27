@@ -52,6 +52,7 @@ struct PersistentKernelArgs {
     uint8_t* compressed_data;  // device: PQ compressed vectors
 
     int nodes_per_page;
+    int io_bytes;
     int node_size;
     int data_size;
     int num_dims;
@@ -75,6 +76,10 @@ struct PersistentKernelArgs {
     float* d_out_distances;      // [total_queries * topk]
     int*   d_out_found_cnt;      // [total_queries]
 
+    const int* d_query_ef;       // [total_search_queries], optional
+    int total_search_queries;
+    int batch_query_offset;
+
 #ifdef FLASHANNS_LATENCY_PROBE
     struct FlashProbeQueryTrace* d_probe_traces;  // [num_queries], per-query timestamp trace
 #endif
@@ -84,8 +89,6 @@ struct PersistentKernelArgs {
     int breakdown_sample_count;
     int breakdown_cta_window_count;
     int64_t breakdown_cta_window_ns;
-    int total_search_queries;
-    int batch_query_offset;
 #endif
 };
 

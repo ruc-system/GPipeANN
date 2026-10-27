@@ -1,5 +1,6 @@
 #include "spdlog/spdlog.h"
 #include <argparse/argparse.hpp>
+#include <algorithm>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -57,6 +58,7 @@ int main(int argc, char** argv) {
   int runner_contexts = 20;
   int pipe_width = 1;
   std::string mini_batch_list;
+  std::string query_ef_csv;
 
   bin_common::register_long_only_help(program);
   bin_common::register_shared_base_args(program, shared_args);
@@ -67,6 +69,10 @@ int main(int argc, char** argv) {
   program.add_argument("--pipe-width").store_into(pipe_width);
 #endif
   program.add_argument("--mini-batch-list").store_into(mini_batch_list);
+  program.add_argument("--query-ef-csv")
+      .store_into(query_ef_csv)
+      .help("Per-query ef_search CSV with columns query_id,ef_search. "
+            "Buffers use max(ef). Repeat tiles the unique-query list.");
 
   try {
     program.parse_args(argc, argv);
@@ -97,6 +103,27 @@ int main(int argc, char** argv) {
       run_mini_batches, "--mini-batch-list");
 
   auto setup = bin_common::prepare_search_setup(shared_args);
+  std::vector<int> query_efs;
+  const int* query_efs_ptr = nullptr;
+  if (!query_ef_csv.empty()) {
+    const int repeat = std::max(shared_args.repeat, 1);
+    const size_t unique_count =
+        setup.queries.count / static_cast<size_t>(repeat);
+    query_efs = bin_common::load_query_ef_csv(query_ef_csv, unique_count,
+                                              repeat);
+    int max_ef = 0;
+    for (int ef : query_efs) max_ef = std::max(max_ef, ef);
+    if (max_ef > shared_args.ef_search) {
+      std::cout << "[GustANN] raising --ef-search from "
+                << shared_args.ef_search << " to " << max_ef
+                << " to cover per-query ef CSV" << std::endl;
+      shared_args.ef_search = max_ef;
+    }
+    query_efs_ptr = query_efs.data();
+    std::cout << "[GustANN] per-query ef from " << query_ef_csv
+              << " unique=" << unique_count << " total=" << query_efs.size()
+              << " max_ef=" << max_ef << std::endl;
+  }
 #if !QUIVER_ENABLE_SPDK
   if (!setup.ssd_lists.empty()) {
     return bin_common::fail_without_spdk_support();
@@ -134,7 +161,8 @@ int main(int argc, char** argv) {
                     static_cast<int>(setup.queries.count), shared_args.topk,
                     shared_args.ef_search, setup.nns.get(),
                     setup.distances.get(), setup.found_counts.get(),
-                    setup.pq.get(), setup.nav.get(), shared_args.repeat);
+                    setup.pq.get(), setup.nav.get(), shared_args.repeat,
+                    query_efs_ptr);
 
     bin_common::print_recall_report(shared_args, setup);
   }

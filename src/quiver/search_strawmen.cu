@@ -55,6 +55,8 @@ static void strawman_poll_loop(
     int tid, int slot_start, int slot_end,
     IOControl* controls, uint8_t* buffers,
     int nodes_per_page,
+    int sectors_per_node,
+    int64_t io_bytes,
     std::shared_ptr<shared::IndexLoader> loader,
     int poll_submit_batch_size,
     std::atomic<bool>& done,
@@ -78,10 +80,12 @@ static void strawman_poll_loop(
                         false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED))
                     continue;
                 local_found++;
-                int blk = controls[gi].node_id / nodes_per_page;
+                int blk = shared::node_first_page(controls[gi].node_id,
+                                                  nodes_per_page,
+                                                  sectors_per_node);
                 req_buf.push_back({
                     blk,
-                    buffers + (int64_t)gi * shared::PAGE_SIZE,
+                    buffers + (int64_t)gi * io_bytes,
                     &controls[gi].status,
                     (int32_t)IO_READY
                 });
@@ -143,6 +147,9 @@ void run_strawman_launcher(
     int num_dims       = (int)layout.num_dims;
     int max_m          = (int)layout.max_m0;
     int nodes_per_page = (int)layout.nodes_per_page;
+    int sectors_per_node = (int)layout.sectors_per_node;
+    int64_t io_bytes = layout.io_bytes > 0 ? layout.io_bytes
+                                           : shared::PAGE_SIZE;
     int node_size      = (int)layout.node_size;
     int data_size      = (int)layout.data_size;
     int aligned_ef     = (max_m + ef_search + 31) / 32 * 32;
@@ -173,9 +180,9 @@ void run_strawman_launcher(
     for (int i = 0; i < num_io_slots; i++) h_controls[i].status = IO_IDLE;
 
     uint8_t* h_buffers =
-        loader->create_buffer((int64_t)shared::PAGE_SIZE * num_io_slots);
+        loader->create_buffer(io_bytes * num_io_slots);
     CHECK_CUDA(cudaHostRegister(h_buffers,
-                                (size_t)shared::PAGE_SIZE * num_io_slots,
+                                (size_t)io_bytes * num_io_slots,
                                 cudaHostRegisterDefault));
 
     PersistentKernelComm* h_comm;
@@ -224,6 +231,7 @@ void run_strawman_launcher(
     args.compressed_data  = pq->device_data.compressed_data;
     args.pq_block_offset  = 0;
     args.nodes_per_page   = nodes_per_page;
+    args.io_bytes         = (int)io_bytes;
     args.node_size        = node_size;
     args.data_size        = data_size;
     args.num_dims         = num_dims;
@@ -375,7 +383,7 @@ void run_strawman_launcher(
             shared::bind_core(t * 2 + 21);
             strawman_poll_loop(t, s0, s1,
                                h_controls, h_buffers,
-                               nodes_per_page, loader,
+                               nodes_per_page, sectors_per_node, io_bytes, loader,
                                poll_submit_batch_size, poll_done, poll_stats);
         });
     }

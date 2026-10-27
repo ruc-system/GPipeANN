@@ -98,11 +98,13 @@ struct PersistentKernelArgs {
     uint8_t* compressed_data;  // device: PQ compressed vectors
 
     int nodes_per_page;
+    int io_bytes;
     int node_size;
     int data_size;
     int num_dims;
     int max_m;
-    int ef_search;
+    int ef_search;             // allocation / clamp ceiling (max per-query ef)
+    const int* d_query_ef;     // [total_queries], optional; nullptr → all use ef_search
     int aligned_ef;
     int topk;
     int pipe_w;
