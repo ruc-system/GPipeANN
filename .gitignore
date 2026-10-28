@@ -37,6 +37,9 @@ ssd_list.txt
 quiver-paper/
 build
 figures/
+# Keep the maintained paper plotting sources and their required inputs.
+!/paper-plots/figures/
+!/paper-plots/figures/**
 darth_trace_nb56.csv
 darth_trace_nb112.csv
 darth_trace_nb168.csv
