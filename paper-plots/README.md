@@ -27,13 +27,13 @@ python3 scripts/plot_figures.py fig06-openai-zipf
 python3 scripts/plot_figures.py --with-supplement
 ```
 
-默认输出在 `build/paper-figures/`，例如 `fig06-openai-zipf.pdf`。`--out-dir` 可调整输出目录。输入是论文保存值，不运行硬件实验，不切换到 AE 新测值。绘图标签统一使用 GPipeANN；重画输出与最终采用 PDF 的排版仍可能不同，因此不自动替换正式 PDF。Q 图的原稿给定利用率仍是保存值，不是本次重测。
+默认输出在 `build/paper-figures/`，例如 `fig06-openai-zipf.pdf`。`--out-dir` 可调整输出目录。输入是论文保存值，不运行硬件实验，不切换到 AE 新测值。绘图标签和版式与采用图对齐；`scripts/check_figures.py` 在 144、300 dpi 逐像素比较 9 份输出，不读取采用图来生成实验图，也不自动替换正式 PDF。Q 图的原稿给定利用率仍是保存值，不是本次重测。
 
 共享组件位于 `scripts/better_annotation.py`、`scripts/paper_style.py` 和 `scripts/paper_contract.py`。字体由 `scripts/figure_paths.py` 定位：论文仓库用 `fonts/gill-sans/`，代码副本用既有 `ae/fonts/`。代码仓库 `paper-plots/` 使用相同的 `scripts/plot_figures.py` 入口，只包含实际使用的脚本与输入；正式图 PDF 和设计 PPTX 在论文仓库中查看。
 
 ## 设计图源
 
-Fig.2 直接编辑 `source.pptx`。Fig.4 原始 PPTX 未找到，恢复版含 125 个可编辑文字/图形对象和一个原 PDF 已有的位图标注；自由曲线路径不是自动吸附连接器。恢复版不是原始 PPTX，重新导出不保证与采用 PDF 逐像素相同。
+Fig.2 直接编辑 `source.pptx`。Fig.4 原始 PPTX 未找到，恢复版现在包含 33 个完整文本框、57 个边界贴合实际几何的矢量对象，以及一个原 PDF 已有的位图标注。`Persistent kernel`、`Q1`、`H1` 和 Slot 标签不再拆框；两个标题分别保留为一个双行文本框，框内保留 § 的原字体。自由曲线路径仍不是自动吸附连接器。
 
 ```bash
 python3 -m pip install -r scripts/design-requirements.txt
@@ -41,4 +41,16 @@ python3 scripts/recover_design_pptx.py figures/fig04-overview/figure.pdf build/o
 FONTCONFIG_FILE="$PWD/scripts/figure-fonts.conf" libreoffice --headless --convert-to pdf --outdir build/design-figures figures/fig04-overview/source.pptx
 ```
 
-保留字体为 Gill Sans Regular、真实 SemiBold，以及原 overview 中 `§` 使用的 Microsoft YaHei Bold 嵌入子集。后者位于 `fonts/design-symbols/`，不是完整字体。
+保留字体为 Gill Sans Regular、真实 SemiBold，以及原 overview 中 `§` 使用的 Microsoft YaHei Bold 嵌入子集。后者位于 `fonts/design-symbols/`，不是完整字体。字距和位置校准保存在 `fig04-overview/text-layout.json`，恢复脚本校验对应 PDF 哈希后自动应用；标签在框内使用格式 runs 保留字距，不拆成多个文本框。当前校准使用 LibreOffice 24.2.7.2；其他软件导出时应重新检查。
+
+## 对齐检查
+
+先生成全部保留的实验图，再导出 Fig.4 PPTX，运行：
+
+```bash
+python3 scripts/plot_figures.py --with-supplement
+FONTCONFIG_FILE="$PWD/scripts/figure-fonts.conf" libreoffice --headless --convert-to pdf --outdir build/design-figures figures/fig04-overview/source.pptx
+python3 scripts/check_figures.py --design-pdf build/design-figures/source.pdf --proof build/figure-alignment.pdf
+```
+
+检查包括：9 份实验图在 144/300 dpi 的精确像素比较、完整文本框结构、图形编辑边界，以及 PPTX 导出的逐字符位置。设计图的默认位置误差阈值为 0.25 pt；实验图不使用这一容差，必须完全一致。对照 PDF 和 JSON 报告在 `build/`，采用的论文 PDF 保持原样。

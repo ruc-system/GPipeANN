@@ -40,7 +40,7 @@ DATASETS = [
     },
 ]
 SERIES = [
-    ("GPipeANN", "quiver", "#1f77b4", "o"),
+    ("GPipeANN(ours)", "quiver", "#1f77b4", "o"),
     ("FusionANNS", "fusion", "#9467bd", "D"),
 ]
 PARETO_DATA = {

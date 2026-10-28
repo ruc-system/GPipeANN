@@ -29,9 +29,10 @@
       "pdf": "fig04-overview/figure.pdf",
       "previous_pdf": "fig-design/overview-small.pdf",
       "pptx": "fig04-overview/source.pptx",
-      "source_status": "Recovered from the final vector PDF; not the original editable PPTX.",
+      "source_status": "Recovered and aligned: 33 logical text boxes, 57 bounded vector objects, one original bitmap annotation.",
       "pdf_sha256": "7079387d760341c4fc5567bccb0a03c8a2609f588f86568f53f5c68b30b7727c",
-      "inputs": []
+      "inputs": [],
+      "text_layout": "fig04-overview/text-layout.json"
     },
     "fig05-e2e": {
       "pdf": "fig05-e2e/figure.pdf",

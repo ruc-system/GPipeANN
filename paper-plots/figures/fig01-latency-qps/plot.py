@@ -23,17 +23,7 @@ from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
 from matplotlib.transforms import Bbox
 
 
-EVAL_DIR = BUNDLE_ROOT / "scripts"
-if str(EVAL_DIR) not in sys.path:
-    sys.path.insert(0, str(EVAL_DIR))
 
-from better_annotation import draw_better_annotation
-
-MOTIVATION_BETTER_ANNOTATION = {
-    "arrow_head": (0.42, 0.56),
-    "arrow_tail": (0.52, 0.42),
-    "label": (0.498, 0.575),
-}
 
 OUTPUT_PDF = output_path("fig01-latency-qps")
 GILL_SANS_DIR = font_dir()
@@ -84,7 +74,7 @@ SERIES = [
         "s",
     ),
     PlotSeries(
-        "GPipeANN",
+        "GPipeANN(ours)",
         [
             (3.265, 67366.17),
             (5.561, 81680.19),
@@ -218,11 +208,6 @@ def save_plot() -> None:
     )
 
     annotate_series(ax)
-    draw_better_annotation(
-        ax,
-        annotation=MOTIVATION_BETTER_ANNOTATION,
-        fontproperties=SEMIBOLD_PROP,
-    )
 
     legend = ax.legend(
         loc="lower right",
