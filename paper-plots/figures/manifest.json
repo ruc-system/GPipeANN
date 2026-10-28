@@ -1,0 +1,105 @@
+{
+  "figures": {
+    "fig01-latency-qps": {
+      "pdf": "fig01-latency-qps/figure.pdf",
+      "previous_pdf": "fig-motivation/latency_qps.pdf",
+      "plot": "fig01-latency-qps/plot.py",
+      "pdf_sha256": "fc6d9b02c257c4aeaaad1c8af7a777c14e68b83589aaa34831885be51f7a0266",
+      "inputs": [],
+      "origin": "Preserved paper plotting source: plots/plot-motivation/plot_latency_qps.py"
+    },
+    "fig02-execution-models": {
+      "pdf": "fig02-execution-models/figure.pdf",
+      "previous_pdf": "fig-design/execution_models-gpipeann.pdf",
+      "pptx": "fig02-execution-models/source.pptx",
+      "pdf_sha256": "345396e5ba9d5813eca92b9c33e04c65a205546894a6be57df75e70226071bc8",
+      "inputs": []
+    },
+    "fig03-io-latency": {
+      "pdf": "fig03-io-latency/figure.pdf",
+      "previous_pdf": "fig-motivation/io-latency.pdf",
+      "plot": "fig03-io-latency/plot.py",
+      "pdf_sha256": "7e2bb8856c11267709d8f277b36c3c1de715a4527108bdb7f15accf3217429c4",
+      "inputs": [
+        "compute-cdf.csv"
+      ],
+      "origin": "Preserved paper plotting source: plots/plot-motivation/io-latency.py"
+    },
+    "fig04-overview": {
+      "pdf": "fig04-overview/figure.pdf",
+      "previous_pdf": "fig-design/overview-small.pdf",
+      "pptx": "fig04-overview/source.pptx",
+      "source_status": "Recovered from the final vector PDF; not the original editable PPTX.",
+      "pdf_sha256": "7079387d760341c4fc5567bccb0a03c8a2609f588f86568f53f5c68b30b7727c",
+      "inputs": []
+    },
+    "fig05-e2e": {
+      "pdf": "fig05-e2e/figure.pdf",
+      "previous_pdf": "fig-evaluation/e2e.pdf",
+      "plot": "fig05-e2e/plot.py",
+      "pdf_sha256": "65a6de59887be0c75c4dd7ae3baf11b06d1185197a788168290fe97ac2a9836c",
+      "inputs": [],
+      "origin": "Preserved paper plotting source: plots/plot-evaluation/e2e.py"
+    },
+    "fig06-openai-zipf": {
+      "pdf": "fig06-openai-zipf/figure.pdf",
+      "previous_pdf": "fig-evaluation/openai1m_zipf.pdf",
+      "plot": "fig06-openai-zipf/plot.py",
+      "pdf_sha256": "136313347420ab73fce4c341e926cb194a33006ad7f822674b1b00985a57f066",
+      "inputs": [
+        "openai.csv",
+        "zipf.csv"
+      ],
+      "origin": "Preserved paper plotting source: plots/plot_openai_zipf.py"
+    },
+    "fig07-fusion": {
+      "pdf": "fig07-fusion/figure.pdf",
+      "previous_pdf": "fig-evaluation/fusion.pdf",
+      "plot": "fig07-fusion/plot.py",
+      "pdf_sha256": "108a46ea4ea6fd8fadb2f23da609be5941a19fefef4eb1145f3fe0382d2c62d8",
+      "inputs": [],
+      "origin": "Preserved paper plotting source: plots/plot-evaluation/fusion.py"
+    },
+    "fig08-ablation": {
+      "pdf": "fig08-ablation/figure.pdf",
+      "previous_pdf": "fig-evaluation/ablation.pdf",
+      "plot": "fig08-ablation/plot.py",
+      "pdf_sha256": "4fb98b31371f4f88f8f10abd310c37ae844b9478118764a7ab65a79310c79bd6",
+      "inputs": [],
+      "origin": "Preserved paper plotting source: plots/plot-evaluation/ablation-clean.py"
+    },
+    "fig09-q-sensitivity": {
+      "pdf": "fig09-q-sensitivity/figure.pdf",
+      "previous_pdf": "fig-evaluation/q_sensitivity.pdf",
+      "plot": "fig09-q-sensitivity/plot.py",
+      "pdf_sha256": "826db8e281d6ab11d53227745db10b53f05a498e20a7b469181685a574099910",
+      "inputs": [],
+      "origin": "Preserved paper plotting source: plots/plot-evaluation/q-sens.py"
+    },
+    "abstract-execution-models": {
+      "pdf": "abstract-execution-models/figure.pdf",
+      "previous_pdf": "fig-design/execution_models.pdf",
+      "pptx": "abstract-execution-models/source.pptx",
+      "pdf_sha256": "8eda93d643c084e5569783feadc1f20c22c4f6ccee29ae03d4494a411f679946",
+      "inputs": []
+    },
+    "abstract-e2e": {
+      "pdf": "abstract-e2e/figure.pdf",
+      "previous_pdf": "fig-evaluation/e2e-small.pdf",
+      "plot": "abstract-e2e/plot.py",
+      "pdf_sha256": "0bceaba7e231083b8551c56238820424ee842143bcb0d258cecb15f213c436eb",
+      "inputs": [],
+      "origin": "Preserved paper plotting source: plots/plot-evaluation/e2e-small.py"
+    },
+    "appendix-a1": {
+      "pdf": "appendix-a1/figure.pdf",
+      "previous_pdf": "ae-figures/figure1_latency_qps.pdf",
+      "pdf_sha256": "6e6a5d706f9e501213fa4d9e16c5cf6dbeda44fe94ea90783373dfc8e65a889f",
+      "inputs": [
+        "input.pdf"
+      ]
+    }
+  },
+  "policy": "Accepted PDFs are preserved byte-for-byte. Paper plotting values are unchanged.",
+  "paper_source_before_reorganization": "9f593cd18c8ecd0e8b837003b600c91b404b2f5b"
+}

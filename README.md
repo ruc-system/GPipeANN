@@ -12,7 +12,7 @@ A low-latency, high-throughput, and billion-scale GPU-SSD vector search system.
 
 For development without SPDK, see the [memory backend tests](tests/memory/README.md), including host-only loader tests and GPU search correctness checks with synthetic indexes.
 
-Paper plotting sources and saved input values are in [paper-plots](paper-plots/README.md). They are maintained in [GPipeANN-paper](https://github.com/w-pq/GPipeANN-paper) and copied here; run `python3 paper-plots/build.py` to redraw them without SPDK or a GPU.
+Paper plotting sources and saved input values are in [paper-plots](paper-plots/README.md). They are maintained in [GPipeANN-paper](https://github.com/w-pq/GPipeANN-paper) and copied here; run `python3 paper-plots/scripts/plot_figures.py` to redraw them without SPDK or a GPU.
 
 ## ✨ Key Features
 
