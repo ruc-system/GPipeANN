@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plot end-to-end IO latency CDF comparison for GustANN, FlashANNS, and Quiver."""
+"""Plot end-to-end IO latency CDF comparison for GustANN, FlashANNS, and GPipeANN."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ REGULAR_PROP: FontProperties | None = None
 SEMIBOLD_PROP: FontProperties | None = None
 
 GPU_UTILIZATION = [42, 96, 95]
-GPU_SYSTEMS = ["FlashANNS", "GustANN", "Quiver"]
+GPU_SYSTEMS = ["FlashANNS", "GustANN", "GPipeANN"]
 BAR_COLORS = ["#fed9a6", "#ccebc5", "#b3cde3"]
 BAR_HATCHES = ["//", "xx", ".."]
 
@@ -744,7 +744,7 @@ def build_series() -> list[PlotSeries]:
     return [
         PlotSeries("GustANN", GUSTANN_IO_CDF, "#2ca02c", "^"),
         PlotSeries("FlashANNS", FLASHANNS_IO_CDF, "#ff7f0e", "s"),
-        PlotSeries("Quiver(ours)", QUIVER_IO_CDF, "#1f77b4", "o", linewidth=1.6),
+        PlotSeries("GPipeANN", QUIVER_IO_CDF, "#1f77b4", "o", linewidth=1.6),
     ]
 
 

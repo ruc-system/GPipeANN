@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plot the Quiver ablation summary."""
+"""Plot the GPipeANN ablation summary."""
 
 from __future__ import annotations
 

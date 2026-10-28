@@ -84,7 +84,7 @@ SERIES = [
         "s",
     ),
     PlotSeries(
-        "Quiver(ours)",
+        "GPipeANN",
         [
             (3.265, 67366.17),
             (5.561, 81680.19),

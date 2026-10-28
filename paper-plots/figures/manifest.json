@@ -80,8 +80,9 @@
       "pdf": "abstract-execution-models/figure.pdf",
       "previous_pdf": "fig-design/execution_models.pdf",
       "pptx": "abstract-execution-models/source.pptx",
-      "pdf_sha256": "8eda93d643c084e5569783feadc1f20c22c4f6ccee29ae03d4494a411f679946",
-      "inputs": []
+      "pdf_sha256": "4038dc9ba49b8427c9bd0b61ce0554665208457b99ac61d4cdf69bd0fd39f271",
+      "inputs": [],
+      "label_update": "Display label changed from Quiver to GPipeANN; vector geometry unchanged."
     },
     "abstract-e2e": {
       "pdf": "abstract-e2e/figure.pdf",
@@ -100,6 +101,6 @@
       ]
     }
   },
-  "policy": "Accepted PDFs are preserved byte-for-byte. Paper plotting values are unchanged.",
+  "policy": "Paper plotting values and vector geometry are preserved; display labels use GPipeANN.",
   "paper_source_before_reorganization": "9f593cd18c8ecd0e8b837003b600c91b404b2f5b"
 }

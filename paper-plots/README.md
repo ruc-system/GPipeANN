@@ -27,7 +27,7 @@ python3 scripts/plot_figures.py fig06-openai-zipf
 python3 scripts/plot_figures.py --with-supplement
 ```
 
-默认输出在 `build/paper-figures/`，例如 `fig06-openai-zipf.pdf`。`--out-dir` 可调整输出目录。输入是论文保存值，不运行硬件实验，不切换到 AE 新测值。原绘图脚本与最终采用 PDF 后续的手工排版、系统标签调整未必逐字节相同，因此重画输出不自动替换正式 PDF。Q 图的原稿给定利用率仍是保存值，不是本次重测。
+默认输出在 `build/paper-figures/`，例如 `fig06-openai-zipf.pdf`。`--out-dir` 可调整输出目录。输入是论文保存值，不运行硬件实验，不切换到 AE 新测值。绘图标签统一使用 GPipeANN；重画输出与最终采用 PDF 的排版仍可能不同，因此不自动替换正式 PDF。Q 图的原稿给定利用率仍是保存值，不是本次重测。
 
 共享组件位于 `scripts/better_annotation.py`、`scripts/paper_style.py` 和 `scripts/paper_contract.py`。字体由 `scripts/figure_paths.py` 定位：论文仓库用 `fonts/gill-sans/`，代码副本用既有 `ae/fonts/`。代码仓库 `paper-plots/` 使用相同的 `scripts/plot_figures.py` 入口，只包含实际使用的脚本与输入；正式图 PDF 和设计 PPTX 在论文仓库中查看。
 
