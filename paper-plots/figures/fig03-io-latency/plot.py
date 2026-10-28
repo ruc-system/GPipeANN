@@ -744,7 +744,7 @@ def build_series() -> list[PlotSeries]:
     return [
         PlotSeries("GustANN", GUSTANN_IO_CDF, "#2ca02c", "^"),
         PlotSeries("FlashANNS", FLASHANNS_IO_CDF, "#ff7f0e", "s"),
-        PlotSeries("GPipeANN", QUIVER_IO_CDF, "#1f77b4", "o", linewidth=1.6),
+        PlotSeries("GPipeANN\n(ours)", QUIVER_IO_CDF, "#1f77b4", "o", linewidth=1.6),
     ]
 
 

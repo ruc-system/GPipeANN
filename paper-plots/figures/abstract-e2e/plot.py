@@ -105,7 +105,7 @@ PANELS = [
 SERIES = [
     ("flashanns", "FlashANNS", "#ff7f0e", "s"),
     ("gustann", "GustANN", "#2ca02c", "^"),
-    ("quiver", "GPipeANN", "#1f77b4", "o"),
+    ("quiver", "GPipeANN(ours)", "#1f77b4", "o"),
 ]
 
 OUTPUT_PDF = output_path("abstract-e2e")
