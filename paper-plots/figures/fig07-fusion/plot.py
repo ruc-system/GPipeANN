@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plot Quiver and FusionANNS Pareto frontiers."""
+"""Plot GPipeANN and FusionANNS Pareto frontiers."""
 
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ DATASETS = [
     },
 ]
 SERIES = [
-    ("Quiver(ours)", "quiver", "#1f77b4", "o"),
+    ("GPipeANN", "quiver", "#1f77b4", "o"),
     ("FusionANNS", "fusion", "#9467bd", "D"),
 ]
 PARETO_DATA = {

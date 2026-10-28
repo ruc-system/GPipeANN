@@ -33,7 +33,7 @@ logging.getLogger("fontTools.subset").setLevel(logging.ERROR)
 logging.getLogger("fontTools.ttLib.tables._p_o_s_t").setLevel(logging.ERROR)
 
 SYSTEMS = ("FlashANNS", "GustANN", "Quiver")
-DISPLAY = {"Quiver": "Quiver(ours)", "FlashANNS": "FlashANNS", "GustANN": "GustANN"}
+DISPLAY = {"Quiver": "GPipeANN", "FlashANNS": "FlashANNS", "GustANN": "GustANN"}
 
 
 def line_style(system: str) -> dict:
