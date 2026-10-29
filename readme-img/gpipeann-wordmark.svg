@@ -1,20 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 160" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 160" role="img" aria-labelledby="title desc">
   <title id="title">GPipeANN</title>
-  <desc id="desc">The GPipeANN wordmark with a lightning bolt.</desc>
+  <desc id="desc">GPipeANN wordmark with a lightning bolt forming the crossbar of the G.</desc>
   <style>
     .ink-stroke { stroke: #434343; }
     .ink-fill { fill: #434343; }
-
     @media (prefers-color-scheme: dark) {
       .ink-stroke { stroke: #F3F4F6; }
       .ink-fill { fill: #F3F4F6; }
     }
   </style>
-
-  <path d="M5 0h25L18 25h20L0 65l10-30h-20z"
-        transform="translate(35 55) rotate(-20)" fill="#FBBF24"/>
-
-  <text class="ink-fill" x="100" y="110"
+  <path class="ink-stroke" d="M77 57 A33 33 0 1 0 80 99 L80 84"
+        fill="none" stroke-width="9" stroke-linecap="butt"/>
+  <path d="M71 65 L51 86 H65 L57 109 L86 77 H72 L80 65 Z" fill="#FBBF24"/>
+  <text class="ink-fill" x="92" y="113"
         font-family="Arial, 'Liberation Sans', Helvetica, sans-serif"
-        font-size="92" font-weight="400">GPipeANN</text>
+        font-size="92" font-weight="400">PipeANN</text>
 </svg>
