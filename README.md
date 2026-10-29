@@ -10,7 +10,15 @@ A low-latency, high-throughput, and billion-scale GPU-SSD vector search system.
   <a href="README-AE.md"><strong>ATC'26 Artifact Evaluation Guide</strong></a>
 </p>
 
-Plotting scripts and saved figure inputs are included in [paper-plots](paper-plots/README.md). Run `python3 paper-plots/scripts/plot_figures.py` to redraw them without SPDK or a GPU.
+## Overview
+
+GPipeANN is a graph-based approximate nearest neighbor search (ANNS) system for billion-scale vector collections. It stores the graph index on NVMe SSDs and keeps product-quantized vector codes in GPU memory, combining GPU computation with SSD capacity to serve both latency-sensitive and high-throughput workloads.
+
+GPipeANN overlaps GPU search computation with SSD I/O inside a persistent GPU kernel. **In-Kernel Query Switching** lets a GPU thread block advance another query while one waits for SSD data. **Occupancy-Aware Context Switching** controls how many query contexts stay resident to balance GPU utilization and query latency.
+
+<p align="center">
+  <img src="readme-img/overview-small.png" alt="GPipeANN persistent GPU kernel with query switching and SSD I/O" width="560">
+</p>
 
 ## ✨ Key Features
 
@@ -135,6 +143,8 @@ ids, distances = idx.search(queries, topk=10, ef_search=45)
 `queries` is a two-dimensional NumPy array. Pass PCI addresses directly through `ssds=[...]`, or use an existing `ssd_list_file`, to select the SPDK backend. Omit both options to read blocks from the ordinary index file for debugging. The `memory_backend` Python argument and `--memory-backend` CLI selector have been removed.
 
 See the [Artifact Evaluation Guide](README-AE.md) for CUDA installation, index preparation, SPDK device binding, and full experiment reproduction.
+
+Plotting scripts and saved figure inputs are included in [paper-plots](paper-plots/README.md). Run `python3 paper-plots/scripts/plot_figures.py` to redraw them without SPDK or a GPU.
 
 ## License
 
