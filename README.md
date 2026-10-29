@@ -144,6 +144,7 @@ license files shipped with those components.
 
 ## 📰 Updates
 
+- **Oct 27, 2026**: Added support for higher-dimensional vectors and different search budgets for individual queries. Available on the [`feature/multisector-perquery-zipf`](https://github.com/ruc-system/GPipeANN/tree/feature/multisector-perquery-zipf) branch.
 - **Sep 24, 2026**: Initial release with billion-scale GPU-SSD search, C++ and Python interfaces, and SPDK and memory backends
 
 ---
