@@ -11,7 +11,7 @@
 // Q is capped at 8 so the block stays within CUDA's 1024-thread limit.
 // Each 128-thread tile owns one query slot and W independent IO lanes.
 // This intentionally measures naive block-internal multi-query parallelism,
-// without Quiver's cross-query scheduler.
+// without GPipeANN's cross-query scheduler.
 // ============================================================================
 
 #include <cooperative_groups.h>
@@ -20,7 +20,7 @@
 #include "../inkernel_nav.cuh"
 #include "../policies/dispatch.cuh"
 
-namespace quiver {
+namespace gpipeann {
 namespace strawmen {
 
 namespace cg = cooperative_groups;
@@ -855,4 +855,4 @@ __global__ void persistent_search_kernel_naive_block_multi_query(
 }
 
 }  // namespace strawmen
-}  // namespace quiver
+}  // namespace gpipeann

@@ -27,7 +27,7 @@ def main():
         for block in page.get_text("dict")["blocks"]
         for line in block.get("lines", [])
         for span in line["spans"]
-        if span["text"] == "Quiver(ours)"
+        if span["text"] == "GPipeANN(ours)"
     ]
     assert len(spans) == 1, "Expected exactly one original system label"
     span = spans[0]

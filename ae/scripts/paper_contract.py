@@ -13,13 +13,13 @@ E2E_BUCKETS = ("0.90", "0.96")
 E2E_DISPLAY = {"0.96": "0.95"}
 FIG8_BUCKETS = ("0.90", "0.92", "0.94", "0.96")
 
-PAPER_PW = {"Quiver": 2, "FlashANNS": 2, "GustANN": 1, "+S": 2}
+PAPER_PW = {"GPipeANN": 2, "FlashANNS": 2, "GustANN": 1, "+S": 2}
 PAPER_E2E_QPB = {"sift": (1, 2), "deep": (1, 2, 3, 4)}
 PAPER_E2E_BATCH_LAT = {"sift": True, "deep": False}
 
-QUIVER_LOWLAT_NB = (108, 216, 324)
-QUIVER_MID_NB = (216, 324, 432, 540, 648, 756, 864, 972)
-QUIVER_DEEP_EXTRA_NB = (864, 972)
+GPIPEANN_LOWLAT_NB = (108, 216, 324)
+GPIPEANN_MID_NB = (216, 324, 432, 540, 648, 756, 864, 972)
+GPIPEANN_DEEP_EXTRA_NB = (864, 972)
 FIG8_NUM_BLOCKS = (108, 216, 324, 432, 540, 648, 756, 864, 972)
 
 # Exact MediaBox sizes of the submitted vector PDFs, in PostScript points.

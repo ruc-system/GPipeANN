@@ -99,7 +99,7 @@ class SpdkWrapperImplementation : public SpdkWrapper {
         // submitted from callback waits for the next process_completions to
         // ring its doorbell). For latency-critical search workloads this can
         // hurt per-hop IO latency. Allow runtime override via env.
-        const char *dcs_env = getenv("QUIVER_DELAY_CMD_SUBMIT");
+        const char *dcs_env = getenv("GPIPEANN_DELAY_CMD_SUBMIT");
         opts.delay_cmd_submit = (dcs_env && atoi(dcs_env) == 0) ? false : true;
         opts.async_mode = true;
         ns_entry.qpair[i] = spdk_nvme_ctrlr_alloc_io_qpair(ns_entry.ctrlr, &opts,

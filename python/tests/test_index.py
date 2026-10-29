@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from quiver import IndexQuiver, QuiverError
+from gpipeann import IndexGPipeANN, GPipeANNError
 
 
 FAKE_BINARY = r'''#!/usr/bin/env python3
@@ -42,7 +42,7 @@ for suffix, array in (("_ids.bin", ids), ("_distances.bin", distances)):
 
 @pytest.fixture()
 def fake_binary(tmp_path: Path) -> Path:
-    path = tmp_path / "quiver_search"
+    path = tmp_path / "gpipeann_search"
     path.write_text(FAKE_BINARY, encoding="utf-8")
     path.chmod(path.stat().st_mode | stat.S_IXUSR)
     return path
@@ -51,7 +51,7 @@ def fake_binary(tmp_path: Path) -> Path:
 def test_numpy_search_and_multi_ssd(tmp_path: Path, fake_binary: Path) -> None:
     index_dir = tmp_path / "index"
     index_dir.mkdir()
-    index = IndexQuiver(
+    index = IndexGPipeANN(
         index_dir,
         data_type="float32",
         ssds=["0000:01:00.0", "0000:02:00.0"],
@@ -76,7 +76,7 @@ def test_rejects_conflicting_ssd_configuration(
     ssd_list.write_text("0000:01:00.0\n", encoding="ascii")
 
     with pytest.raises(ValueError, match="either ssds or ssd_list_file"):
-        IndexQuiver(
+        IndexGPipeANN(
             index_dir,
             ssds=["0000:01:00.0"],
             ssd_list_file=ssd_list,
@@ -87,27 +87,27 @@ def test_rejects_conflicting_ssd_configuration(
 def test_reports_engine_failure(tmp_path: Path) -> None:
     index_dir = tmp_path / "index"
     index_dir.mkdir()
-    binary = tmp_path / "quiver_search"
+    binary = tmp_path / "gpipeann_search"
     binary.write_text(
         "#!/usr/bin/env sh\necho 'index metadata is invalid' >&2\nexit 7\n",
         encoding="ascii",
     )
     binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
-    index = IndexQuiver(index_dir, binary=binary)
+    index = IndexGPipeANN(index_dir, binary=binary)
 
-    with pytest.raises(QuiverError, match="code 7: index metadata is invalid"):
+    with pytest.raises(GPipeANNError, match="code 7: index metadata is invalid"):
         index.search(np.ones((1, 4), dtype=np.float32))
 
 
 def test_reports_engine_timeout(tmp_path: Path) -> None:
     index_dir = tmp_path / "index"
     index_dir.mkdir()
-    binary = tmp_path / "quiver_search"
+    binary = tmp_path / "gpipeann_search"
     binary.write_text(
         "#!/usr/bin/env python3\nwhile True:\n    pass\n", encoding="ascii"
     )
     binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
-    index = IndexQuiver(index_dir, binary=binary)
+    index = IndexGPipeANN(index_dir, binary=binary)
 
-    with pytest.raises(QuiverError, match="exceeded the 0.05 second timeout"):
+    with pytest.raises(GPipeANNError, match="exceeded the 0.05 second timeout"):
         index.search(np.ones((1, 4), dtype=np.float32), timeout=0.05)

@@ -40,12 +40,12 @@ DATASETS = [
     },
 ]
 SERIES = [
-    ("GPipeANN(ours)", "quiver", "#1f77b4", "o"),
+    ("GPipeANN(ours)", "gpipeann", "#1f77b4", "o"),
     ("FusionANNS", "fusion", "#9467bd", "D"),
 ]
 PARETO_DATA = {
     "sift1b": {
-        "quiver": [
+        "gpipeann": [
             (4.188, 27305.31),
             (6.817, 33612.82),
             (9.868, 35824.91),
@@ -71,7 +71,7 @@ PARETO_DATA = {
         ],
     },
     "deep1b": {
-        "quiver": [
+        "gpipeann": [
             (6.337, 17905.65),
             (11.036, 21944.11),
             (13.73, 23801.88),

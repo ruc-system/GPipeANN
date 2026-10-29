@@ -19,7 +19,7 @@ base_fmt() {
   esac
 }
 
-# Classic fvecs for 1M smoke; billion-scale usually fbin/u8bin next to Quiver data.
+# Classic fvecs for 1M smoke; billion-scale usually fbin/u8bin next to GPipeANN data.
 case "${DATASET}" in
   sift1m)
     # AE data is DiskANN fbin; fvecs is a fallback.

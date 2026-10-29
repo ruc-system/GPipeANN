@@ -1,6 +1,6 @@
 // Strawman PQ-in-global-memory: explicit context spill-load on every switch.
 //
-// Built only when -DQUIVER_BUILD_STRAWMEN=ON.
+// Built only when -DGPIPEANN_BUILD_STRAWMEN=ON.
 // CLI mirrors strawmen_pq_in_smem so the ablation can isolate context
 // placement: per-slot search context lives in global memory and is explicitly
 // loaded into shared memory when a slot is scheduled, then written back before
@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-#include "../src/quiver/search.cuh"
+#include "../src/gpipeann/search.cuh"
 #include "shared/common/log_config.hpp"
 #include "shared/io/spdk_loader_config.hpp"
 
@@ -119,7 +119,7 @@ int main(int argc, char** argv) {
 
     std::shared_ptr<shared::IndexLoader> loader;
     if (!setup.ssd_lists.empty()) {
-#if QUIVER_ENABLE_SPDK
+#if GPIPEANN_ENABLE_SPDK
       const auto spdk_options = shared::default_spdk_loader_options();
       spdlog::info("Using SPDK backend (submit_queue_capacity={} "
                    "task_context_count={} runner_io_context_count={} Q={})",
@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
       return 1;
     }
 
-    quiver::run_pq_in_gmem_search(
+    gpipeann::run_pq_in_gmem_search(
         setup.layout, setup.data_type, pipe_width, poll_threads, run_nb,
         loader, setup.pq.get(), setup.nav.get(),
         static_cast<int>(setup.layout.enter_point), starter.get(),

@@ -24,7 +24,7 @@ inline spdlog::level::level_enum parse_log_level(const char* value) {
 }
 
 inline spdlog::level::level_enum resolve_log_level_from_env() {
-  return parse_log_level(std::getenv("QUIVER_LOG_LEVEL"));
+  return parse_log_level(std::getenv("GPIPEANN_LOG_LEVEL"));
 }
 
 inline void configure_logging_from_env() {
@@ -33,7 +33,7 @@ inline void configure_logging_from_env() {
 }
 
 inline bool spdk_diag_enabled() {
-  const char* env = std::getenv("QUIVER_SPDK_DIAG");
+  const char* env = std::getenv("GPIPEANN_SPDK_DIAG");
   return env != nullptr && std::atoi(env) != 0;
 }
 
@@ -42,7 +42,7 @@ inline bool terminal_color_enabled() {
   if (no_color != nullptr && no_color[0] != '\0') {
     return false;
   }
-  const char* color = std::getenv("QUIVER_COLOR");
+  const char* color = std::getenv("GPIPEANN_COLOR");
   if (color != nullptr && std::strcmp(color, "0") == 0) {
     return false;
   }

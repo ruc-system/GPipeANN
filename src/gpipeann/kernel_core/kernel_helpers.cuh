@@ -1,16 +1,16 @@
 #pragma once
 
-// Kernel helper functions extracted from quiver/kernel.cuh (Phase 1 refactor).
+// Kernel helper functions extracted from gpipeann/kernel.cuh (Phase 1 refactor).
 // These were identical to the FlashANNS counterparts but kept internal to
-// Quiver per the refactor plan (src/flashanns/ stays frozen as a physical
-// baseline and does not share code with Quiver).
+// GPipeANN per the refactor plan (src/flashanns/ stays frozen as a physical
+// baseline and does not share code with GPipeANN).
 
 #include "../io_control.cuh"
 #include "../../shared/common/gpu_primitives.cuh"
 #include "../../shared/common/search_state.cuh"
 #include "../../shared/index/pq_device.cuh"
 
-namespace quiver {
+namespace gpipeann {
 
 __device__ __forceinline__ unsigned long long globaltimer_ns() {
     unsigned long long t;
@@ -238,7 +238,7 @@ __device__ void persistent_merge_data(
     int* mv_pos, uint32_t* mv_id, float* mv_dist,
     uint32_t* tmp_id, float* tmp_dist,
     uint8_t* node_scratch = nullptr
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
     , int64_t* probe_pq_done_out = nullptr
 #endif
     )
@@ -286,7 +286,7 @@ __device__ void persistent_merge_data(
     }
     __syncthreads();
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
     if (probe_pq_done_out && tid == 0) *probe_pq_done_out = globaltimer_ns();
 #endif
 
@@ -587,4 +587,4 @@ __device__ __forceinline__ void issue_request(IOControl* ctl, int32_t node_id)
     ctl->status = IO_REQUESTED;
 }
 
-} // namespace quiver
+} // namespace gpipeann

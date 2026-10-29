@@ -6,7 +6,7 @@
 #include "../shared/common/runtime.hpp"
 #include "../shared/common/run_report.hpp"
 #include "../shared/common/search_state.cuh"
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
 #include "../shared/common/ae_csv.hpp"
 #include "../shared/common/light_breakdown.hpp"
 #endif
@@ -14,7 +14,7 @@
 #include "../shared/io/runtime_stats.hpp"
 #include "../../bin/darth_predictor_generated.hpp"
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
 #include "probe_report.cuh"
 #endif
 
@@ -34,11 +34,11 @@
 #include <vector>
 #include <nvtx3/nvToolsExt.h>
 
-namespace quiver {
+namespace gpipeann {
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
-static int64_t quiver_breakdown_cta_window_ns_from_env() {
-    const char* value = std::getenv("QUIVER_BREAKDOWN_CTA_WINDOW_US");
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
+static int64_t gpipeann_breakdown_cta_window_ns_from_env() {
+    const char* value = std::getenv("GPIPEANN_BREAKDOWN_CTA_WINDOW_US");
     const long long us =
         value != nullptr ? std::strtoll(value, nullptr, 10) : 1000;
     return std::max(1LL, us) * 1000;
@@ -48,21 +48,21 @@ static int64_t quiver_breakdown_cta_window_ns_from_env() {
 struct PollStats {
     std::atomic<long> io_found{0};
     std::atomic<long> poll_iters{0};
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
     std::mutex io_latency_mu;
     std::vector<double> end_to_end_io_us;
 #endif
 };
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
 static inline int64_t host_steady_now_ns() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(
                std::chrono::steady_clock::now().time_since_epoch())
         .count();
 }
 
-static int quiver_io_sample_cases_from_env() {
-    const char* env = std::getenv("QUIVER_IO_SAMPLE_CASES");
+static int gpipeann_io_sample_cases_from_env() {
+    const char* env = std::getenv("GPIPEANN_IO_SAMPLE_CASES");
     if (env == nullptr || env[0] == '\0') return 256;
     char* end = nullptr;
     long value = std::strtol(env, &end, 10);
@@ -137,14 +137,14 @@ static void write_step_recall_csv(
     out.close();
 
     std::sort(reached_steps.begin(), reached_steps.end());
-    std::cout << "[Quiver] Step recall CSV: " << options.csv_path << "\n"
-              << "[Quiver] Step recall reached=" << reached
+    std::cout << "[GPipeANN] Step recall CSV: " << options.csv_path << "\n"
+              << "[GPipeANN] Step recall reached=" << reached
               << " unreached=" << (steps.size() - (size_t)reached)
               << " threshold=" << options.threshold
               << " required_hits=" << required_hits_for_threshold(options.threshold, topk)
               << std::endl;
     if (!reached_steps.empty()) {
-        std::cout << "[Quiver] Step recall steps p50="
+        std::cout << "[GPipeANN] Step recall steps p50="
                   << percentile_sorted(reached_steps, 50)
                   << " p90=" << percentile_sorted(reached_steps, 90)
                   << " p99=" << percentile_sorted(reached_steps, 99)
@@ -184,7 +184,7 @@ static void cpu_poll_loop(
     std::shared_ptr<shared::IndexLoader> loader,
     int poll_submit_batch_size,
     std::atomic<bool>& done,
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
     std::atomic<bool>& sample_current_batch,
 #endif
     PollStats& stats)
@@ -194,7 +194,7 @@ static void cpu_poll_loop(
     std::vector<int> idx_buf;
     req_buf.reserve(poll_submit_batch_size);
     idx_buf.reserve(poll_submit_batch_size);
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
     std::vector<int> sampled_idx_buf;
     sampled_idx_buf.reserve(poll_submit_batch_size);
     std::vector<int64_t> submit_ns(n, 0);
@@ -207,13 +207,13 @@ static void cpu_poll_loop(
         local_iters++;
         req_buf.clear();
         idx_buf.clear();
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
         sampled_idx_buf.clear();
 #endif
         for (int i = 0; i < n; i++) {
             int gi = slot_start + i;
             int32_t st = __atomic_load_n(&controls[gi].status, __ATOMIC_ACQUIRE);
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
             const bool sample_io = sample_current_batch.load(
                 std::memory_order_relaxed);
             const int64_t observed_complete_ns =
@@ -238,7 +238,7 @@ static void cpu_poll_loop(
 
                 local_found++;
                 int blk = controls[gi].node_id / nodes_per_page;
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
                 volatile int64_t* sampled_complete_ns =
                     sample_io ? &complete_ns[i] : nullptr;
 #endif
@@ -247,19 +247,19 @@ static void cpu_poll_loop(
                     buffers + (int64_t)gi * shared::PAGE_SIZE,
                     &controls[gi].status,
                     (int32_t)IO_READY
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
                     ,
                     sampled_complete_ns
 #endif
                 });
                 idx_buf.push_back(i);
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
                 if (sampled_complete_ns != nullptr) {
                     sampled_idx_buf.push_back(i);
                 }
 #endif
                 if ((int)req_buf.size() >= poll_submit_batch_size) {
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
                     const int64_t now_ns = host_steady_now_ns();
                     for (int li : sampled_idx_buf) {
                         submit_ns[li] = now_ns;
@@ -270,14 +270,14 @@ static void cpu_poll_loop(
                     loader->submit_direct(req_buf, tid);
                     req_buf.clear();
                     idx_buf.clear();
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
                     sampled_idx_buf.clear();
 #endif
                 }
             }
         }
         if (!req_buf.empty()) {
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
             const int64_t now_ns = host_steady_now_ns();
             for (int li : sampled_idx_buf) {
                 submit_ns[li] = now_ns;
@@ -287,7 +287,7 @@ static void cpu_poll_loop(
             loader->submit_direct(req_buf, tid);
         }
     }
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
     for (int i = 0; i < n; ++i) {
         const int64_t observed_complete_ns =
             __atomic_load_n(&complete_ns[i], __ATOMIC_ACQUIRE);
@@ -377,11 +377,11 @@ void run_persistent_search(
     const PerStepRecallOptions& per_step_recall,
     const EarlyExitOptions& early_exit)
 {
-#ifdef QUIVER_FIXED_PIPE_WIDTH
-    pipe_w = QUIVER_FIXED_PIPE_WIDTH;
+#ifdef GPIPEANN_FIXED_PIPE_WIDTH
+    pipe_w = GPIPEANN_FIXED_PIPE_WIDTH;
 #endif
-#ifdef QUIVER_FIXED_QUERIES_PER_BLOCK
-    queries_per_block = QUIVER_FIXED_QUERIES_PER_BLOCK;
+#ifdef GPIPEANN_FIXED_QUERIES_PER_BLOCK
+    queries_per_block = GPIPEANN_FIXED_QUERIES_PER_BLOCK;
 #endif
     int num_dims       = (int)layout.num_dims;
     int max_m          = (int)layout.max_m0;
@@ -410,12 +410,12 @@ void run_persistent_search(
     const char* psb_env = getenv("CPU_POLL_SUBMIT_BATCH_SIZE");
     if (psb_env) poll_submit_batch_size = std::atoi(psb_env);
 
-    // Prefeed depth (env QUIVER_PREFEED): allow CPU to over-feed GPU by this
+    // Prefeed depth (env GPIPEANN_PREFEED): allow CPU to over-feed GPU by this
     // many queries before throttling on completions.  Default 0 keeps strict
     // 1:1 flow control for minimum latency.  Larger values trade latency for
     // throughput when PCIe feed_count visibility delay is the bottleneck.
     int prefeed_depth_cfg = 0;
-    const char* pf_env_early = getenv("QUIVER_PREFEED");
+    const char* pf_env_early = getenv("GPIPEANN_PREFEED");
     if (pf_env_early) prefeed_depth_cfg = std::atoi(pf_env_early);
 
     INFO("Persistent kernel: B={}, pipe_w={}, num_blocks={}, Q={}, task_slots={}, io_slots={}, T={}, poll_submit_batch_size={}, prefeed={}",
@@ -530,33 +530,33 @@ void run_persistent_search(
         }
     }
 
-#ifdef QUIVER_LATENCY_PROBE
-    QuiverProbeQueryTrace* d_probe_traces = nullptr;
+#ifdef GPIPEANN_LATENCY_PROBE
+    GPipeANNProbeQueryTrace* d_probe_traces = nullptr;
     int probe_num_traces = std::min(num_queries, (int)PROBE_MAX_QUERY_TRACES);
-    CHECK_CUDA(cudaMalloc(&d_probe_traces, sizeof(QuiverProbeQueryTrace) * probe_num_traces));
-    CHECK_CUDA(cudaMemset(d_probe_traces, 0, sizeof(QuiverProbeQueryTrace) * probe_num_traces));
-    QuiverProbeBlockTrace* d_probe_block_traces = nullptr;
+    CHECK_CUDA(cudaMalloc(&d_probe_traces, sizeof(GPipeANNProbeQueryTrace) * probe_num_traces));
+    CHECK_CUDA(cudaMemset(d_probe_traces, 0, sizeof(GPipeANNProbeQueryTrace) * probe_num_traces));
+    GPipeANNProbeBlockTrace* d_probe_block_traces = nullptr;
 #endif
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
-    QuiverLightBreakdownTrace* d_breakdown_traces = nullptr;
-    QuiverBreakdownCtaWindowTrace* d_breakdown_cta_windows = nullptr;
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
+    GPipeANNLightBreakdownTrace* d_breakdown_traces = nullptr;
+    GPipeANNBreakdownCtaWindowTrace* d_breakdown_cta_windows = nullptr;
     const int breakdown_sample_count = std::min(
         num_queries,
-        (int)shared::breakdown::QUIVER_LIGHT_BREAKDOWN_SAMPLE_QUERIES);
+        (int)shared::breakdown::GPIPEANN_LIGHT_BREAKDOWN_SAMPLE_QUERIES);
     const int breakdown_cta_window_count = breakdown_sample_count;
     CHECK_CUDA(cudaMalloc(
         &d_breakdown_traces,
-        sizeof(QuiverLightBreakdownTrace) * breakdown_sample_count));
+        sizeof(GPipeANNLightBreakdownTrace) * breakdown_sample_count));
     CHECK_CUDA(cudaMemset(
         d_breakdown_traces, 0,
-        sizeof(QuiverLightBreakdownTrace) * breakdown_sample_count));
+        sizeof(GPipeANNLightBreakdownTrace) * breakdown_sample_count));
     CHECK_CUDA(cudaMalloc(
         &d_breakdown_cta_windows,
-        sizeof(QuiverBreakdownCtaWindowTrace) * breakdown_cta_window_count));
+        sizeof(GPipeANNBreakdownCtaWindowTrace) * breakdown_cta_window_count));
     CHECK_CUDA(cudaMemset(
         d_breakdown_cta_windows, 0,
-        sizeof(QuiverBreakdownCtaWindowTrace) * breakdown_cta_window_count));
+        sizeof(GPipeANNBreakdownCtaWindowTrace) * breakdown_cta_window_count));
 #endif
 
     // ---- 5. Build kernel args ----
@@ -636,16 +636,16 @@ void run_persistent_search(
     args.d_early_exit_stop_step = d_early_exit_stop_step;
     args.d_finish_step = d_finish_step;
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     args.d_breakdown_traces = d_breakdown_traces;
     args.d_breakdown_cta_windows = d_breakdown_cta_windows;
     args.breakdown_sample_count = breakdown_sample_count;
     args.breakdown_cta_window_count = breakdown_cta_window_count;
     args.breakdown_cta_window_ns =
-        quiver_breakdown_cta_window_ns_from_env();
+        gpipeann_breakdown_cta_window_ns_from_env();
 #endif
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
     args.d_probe_traces      = d_probe_traces;
     args.probe_max_traces    = probe_num_traces;
     args.d_probe_block_traces = d_probe_block_traces;
@@ -673,7 +673,7 @@ void run_persistent_search(
 
     // ---- 7. Start CPU IO poll threads ----
     std::atomic<bool> poll_done(false);
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
     std::atomic<bool> sample_current_batch(false);
 #endif
     std::vector<std::thread> pollers;
@@ -691,7 +691,7 @@ void run_persistent_search(
                           nodes_per_page, loader,
                           poll_submit_batch_size,
                           poll_done,
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
                           sample_current_batch,
 #endif
                           poll_stats);
@@ -826,7 +826,7 @@ void run_persistent_search(
 
     // Prefeed depth: allow GPU to have extra queries ready so blocks never
     // stall waiting for CPU feed_count updates across PCIe.  Controlled by
-    // environment variable QUIVER_PREFEED (default: num_blocks, i.e. 2x the
+    // environment variable GPIPEANN_PREFEED (default: num_blocks, i.e. 2x the
     // base concurrency).  Setting to 0 restores the original 1:1 flow control.
     const int prefeed_depth = prefeed_depth_cfg;
 
@@ -977,7 +977,7 @@ void run_persistent_search(
     // max_inflight_queries (num_blocks*Q, typically 1000+) keeps GPU
     // blocks fed even when we skip a small admit.  Env overridable.
     int admit_min_batch = 32;
-    if (const char* env = std::getenv("QUIVER_ADMIT_MIN_BATCH"))
+    if (const char* env = std::getenv("GPIPEANN_ADMIT_MIN_BATCH"))
         admit_min_batch = std::max(1, std::atoi(env));
 
     while (last_done < num_queries) {
@@ -1180,7 +1180,7 @@ void run_persistent_search(
                    << io_stats.submit_backpressure_count
                    << " spdk_nvme_errors=" << io_stats.nvme_error_count;
     shared::RunReport report;
-    report.program = "Quiver";
+    report.program = "GPipeANN";
     report.query = {shared::data_type_name(data_type), topk, ef_search, repeat};
     report.runtime_params = runtime_params.str();
     report.qps = num_queries / search_time;
@@ -1195,15 +1195,15 @@ void run_persistent_search(
     report.queries_per_block = Q;
     report.pipe_width = pipe_w;
     shared::print_run_report(report);
-    print_batch_latency_summary("Quiver", batch_latencies);
+    print_batch_latency_summary("GPipeANN", batch_latencies);
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     {
-        std::vector<QuiverLightBreakdownTrace> traces(
+        std::vector<GPipeANNLightBreakdownTrace> traces(
             breakdown_sample_count);
         CHECK_CUDA(cudaMemcpy(
             traces.data(), d_breakdown_traces,
-            sizeof(QuiverLightBreakdownTrace) * breakdown_sample_count,
+            sizeof(GPipeANNLightBreakdownTrace) * breakdown_sample_count,
             cudaMemcpyDeviceToHost));
         std::vector<double> compute, io_wait, resume, cta_active_pct;
         for (int i = 0; i < breakdown_sample_count; ++i) {
@@ -1212,14 +1212,14 @@ void run_persistent_search(
             std::vector<std::pair<int64_t, int64_t>> waits;
             const int wait_n = std::min(
                 tr.wait_interval_count,
-                QUIVER_LIGHT_BREAKDOWN_MAX_WAIT_INTERVALS);
+                GPIPEANN_LIGHT_BREAKDOWN_MAX_WAIT_INTERVALS);
             const int compute_n = std::min(
                 tr.compute_interval_count,
-                QUIVER_LIGHT_BREAKDOWN_MAX_COMPUTE_INTERVALS);
+                GPIPEANN_LIGHT_BREAKDOWN_MAX_COMPUTE_INTERVALS);
             for (int h = 0; h < wait_n; ++h)
                 waits.push_back({tr.wait_start_ns[h], tr.wait_end_ns[h]});
             shared::ae::append_hop_intervals(
-                "Quiver", i, tr.wait_start_ns, tr.wait_end_ns, wait_n,
+                "GPipeANN", i, tr.wait_start_ns, tr.wait_end_ns, wait_n,
                 tr.compute_start_ns, tr.compute_end_ns, compute_n);
             const double latency_us =
                 (tr.query_done_ns - tr.query_start_ns) / 1000.0;
@@ -1232,11 +1232,11 @@ void run_persistent_search(
             io_wait.push_back(scaled[1]);
             resume.push_back(scaled[2]);
         }
-        std::vector<QuiverBreakdownCtaWindowTrace> windows(
+        std::vector<GPipeANNBreakdownCtaWindowTrace> windows(
             breakdown_cta_window_count);
         CHECK_CUDA(cudaMemcpy(
             windows.data(), d_breakdown_cta_windows,
-            sizeof(QuiverBreakdownCtaWindowTrace) *
+            sizeof(GPipeANNBreakdownCtaWindowTrace) *
                 breakdown_cta_window_count,
             cudaMemcpyDeviceToHost));
         for (const auto& window : windows) {
@@ -1249,13 +1249,13 @@ void run_persistent_search(
                 shared::breakdown::make_cta_activity_sample(
                     total, std::max(0.0, total - idle)).active_ratio_pct);
         }
-        shared::breakdown::print_quiver_metric_samples(
+        shared::breakdown::print_gpipeann_metric_samples(
             compute, io_wait, resume,
             /*scheduling_gap=*/{}, /*other=*/{}, /*kernel_launch=*/{},
             /*h2d=*/{}, /*d2h=*/{}, /*latency=*/{}, /*cta_window=*/{},
             /*cta_active=*/{}, /*cta_pure_io_wait=*/{}, cta_active_pct);
         shared::ae::append_closed_breakdown(
-            "Quiver", compute, io_wait, resume, cta_active_pct);
+            "GPipeANN", compute, io_wait, resume, cta_active_pct);
     }
 #endif
 
@@ -1266,7 +1266,7 @@ void run_persistent_search(
                 early_exit.policy == EarlyExitPolicy::kDarth ? "darth" :
                 early_exit.policy == EarlyExitPolicy::kDarthTrace ? "darth_trace" : "gpruning";
         }
-        std::cout << "[Quiver] Finish summary: policy=" << policy_name
+        std::cout << "[GPipeANN] Finish summary: policy=" << policy_name
                   << " avg_finish_step=" << std::fixed << std::setprecision(2)
                   << avg_finish_step
                   << " finished=" << finish_step_count << "/" << num_queries;
@@ -1301,28 +1301,28 @@ void run_persistent_search(
         std::cout << std::defaultfloat << std::endl;
     }
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
     {
-        std::vector<QuiverProbeQueryTrace> h_traces(probe_num_traces);
+        std::vector<GPipeANNProbeQueryTrace> h_traces(probe_num_traces);
         CHECK_CUDA(cudaMemcpy(h_traces.data(), d_probe_traces,
-                              sizeof(QuiverProbeQueryTrace) * probe_num_traces,
+                              sizeof(GPipeANNProbeQueryTrace) * probe_num_traces,
                               cudaMemcpyDeviceToHost));
-        if (std::getenv("QUIVER_PROBE_QUERY_BREAKDOWN") != nullptr) {
+        if (std::getenv("GPIPEANN_PROBE_QUERY_BREAKDOWN") != nullptr) {
             print_query_latency_breakdown(h_traces.data(), probe_num_traces);
         }
         print_global_hop_probe_breakdown(h_traces.data(), probe_num_traces);
-        if (std::getenv("QUIVER_PROBE_CSV") != nullptr) {
-            std::printf("Quiver EndToEndIO probe is only supported in static "
+        if (std::getenv("GPIPEANN_PROBE_CSV") != nullptr) {
+            std::printf("GPipeANN EndToEndIO probe is only supported in static "
                         "mode; no CDF written for streaming mode.\n");
         }
     }
 #endif
 
     // ---- 11. Cleanup ----
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
     CHECK_CUDA(cudaFree(d_probe_traces));
 #endif
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     CHECK_CUDA(cudaFree(d_breakdown_traces));
     CHECK_CUDA(cudaFree(d_breakdown_cta_windows));
 #endif
@@ -1363,7 +1363,7 @@ void run_persistent_search(
 // ================================================================
 // StaticDispatch ablation entry point.
 // The host still exposes FlashANNS-style fixed-size batches, but each batch
-// runs Quiver's streaming dispatch kernel over a pre-admitted query range.
+// runs GPipeANN's streaming dispatch kernel over a pre-admitted query range.
 // This keeps the stable StreamingDispatch state machine while preserving the
 // static binary's CLI and reporting surface.
 // ================================================================
@@ -1389,11 +1389,11 @@ void run_static_batch_search(
     int repeat,
     const EarlyExitOptions& early_exit)
 {
-#ifdef QUIVER_FIXED_PIPE_WIDTH
-    pipe_w = QUIVER_FIXED_PIPE_WIDTH;
+#ifdef GPIPEANN_FIXED_PIPE_WIDTH
+    pipe_w = GPIPEANN_FIXED_PIPE_WIDTH;
 #endif
-#ifdef QUIVER_FIXED_QUERIES_PER_BLOCK
-    queries_per_block = QUIVER_FIXED_QUERIES_PER_BLOCK;
+#ifdef GPIPEANN_FIXED_QUERIES_PER_BLOCK
+    queries_per_block = GPIPEANN_FIXED_QUERIES_PER_BLOCK;
 #endif
     const int Q = queries_per_block > 0 ? queries_per_block : 1;
     int num_dims       = (int)layout.num_dims;
@@ -1495,20 +1495,20 @@ void run_static_batch_search(
         }
     }
 
-#ifdef QUIVER_LATENCY_PROBE
-    QuiverProbeQueryTrace* d_probe_traces = nullptr;
+#ifdef GPIPEANN_LATENCY_PROBE
+    GPipeANNProbeQueryTrace* d_probe_traces = nullptr;
     int probe_num_traces = std::min(num_queries, (int)PROBE_MAX_QUERY_TRACES);
-    CHECK_CUDA(cudaMalloc(&d_probe_traces, sizeof(QuiverProbeQueryTrace) * probe_num_traces));
-    CHECK_CUDA(cudaMemset(d_probe_traces, 0, sizeof(QuiverProbeQueryTrace) * probe_num_traces));
+    CHECK_CUDA(cudaMalloc(&d_probe_traces, sizeof(GPipeANNProbeQueryTrace) * probe_num_traces));
+    CHECK_CUDA(cudaMemset(d_probe_traces, 0, sizeof(GPipeANNProbeQueryTrace) * probe_num_traces));
     const int probe_batch_stride = num_blocks * Q;
     const int probe_num_batches =
         (num_queries + probe_batch_stride - 1) / probe_batch_stride;
     const int probe_num_block_traces = probe_num_batches * num_blocks;
-    QuiverProbeBlockTrace* d_probe_block_traces = nullptr;
+    GPipeANNProbeBlockTrace* d_probe_block_traces = nullptr;
     CHECK_CUDA(cudaMalloc(&d_probe_block_traces,
-                          sizeof(QuiverProbeBlockTrace) * probe_num_block_traces));
+                          sizeof(GPipeANNProbeBlockTrace) * probe_num_block_traces));
     CHECK_CUDA(cudaMemset(d_probe_block_traces, 0,
-                          sizeof(QuiverProbeBlockTrace) * probe_num_block_traces));
+                          sizeof(GPipeANNProbeBlockTrace) * probe_num_block_traces));
 #endif
 
     // ---- 5. Build kernel args ----
@@ -1574,7 +1574,7 @@ void run_static_batch_search(
     args.d_early_exit_stop_step = d_early_exit_stop_step;
     args.d_finish_step = d_finish_step;
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
     args.d_probe_traces      = d_probe_traces;
     args.probe_max_traces    = probe_num_traces;
     args.d_probe_block_traces = d_probe_block_traces;
@@ -1599,7 +1599,7 @@ void run_static_batch_search(
 
     // ---- 7. Start CPU IO poll threads ----
     std::atomic<bool> poll_done(false);
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
     std::atomic<bool> sample_current_batch(false);
 #endif
     std::vector<std::thread> pollers;
@@ -1616,7 +1616,7 @@ void run_static_batch_search(
                           nodes_per_page, loader,
                           poll_submit_batch_size,
                           poll_done,
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
                           sample_current_batch,
 #endif
                           poll_stats);
@@ -1724,9 +1724,9 @@ void run_static_batch_search(
     batch_latencies.reserve(num_batches);
     INFO("StaticBatch: {} batches of {} blocks x Q={} = {} queries per batch, total {} queries",
          num_batches, num_blocks, Q, batch_stride, num_queries);
-#ifdef QUIVER_LATENCY_PROBE
-    const int io_sample_cases = quiver_io_sample_cases_from_env();
-    std::printf("Quiver static IO sampling: target_cases=%d, total_batches=%d\n",
+#ifdef GPIPEANN_LATENCY_PROBE
+    const int io_sample_cases = gpipeann_io_sample_cases_from_env();
+    std::printf("GPipeANN static IO sampling: target_cases=%d, total_batches=%d\n",
                 io_sample_cases, num_batches);
 #endif
 
@@ -1734,7 +1734,7 @@ void run_static_batch_search(
         int batch_start = b * batch_stride;
         int batch_end   = std::min(batch_start + batch_stride, num_queries);
         int batch_size  = batch_end - batch_start;
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
         sample_current_batch.store(
             should_sample_batch_case(b, num_batches, io_sample_cases),
             std::memory_order_relaxed);
@@ -1787,7 +1787,7 @@ void run_static_batch_search(
             query_latencies.push_back(batch_latency_ms);
         }
     }
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
     sample_current_batch.store(false, std::memory_order_relaxed);
 #endif
 
@@ -1894,7 +1894,7 @@ void run_static_batch_search(
                    << io_stats.submit_backpressure_count
                    << " spdk_nvme_errors=" << io_stats.nvme_error_count;
     shared::RunReport report;
-    report.program = "Quiver";
+    report.program = "GPipeANN";
     report.query = {shared::data_type_name(data_type), topk, ef_search, repeat};
     report.runtime_params = runtime_params.str();
     report.qps = num_queries / search_time;
@@ -1909,7 +1909,7 @@ void run_static_batch_search(
     report.queries_per_block = Q;
     report.pipe_width = pipe_w;
     shared::print_run_report(report);
-    print_batch_latency_summary("Quiver StaticBatch", batch_latencies);
+    print_batch_latency_summary("GPipeANN StaticBatch", batch_latencies);
 
     {
         const char* policy_name = "none";
@@ -1918,7 +1918,7 @@ void run_static_batch_search(
                 early_exit.policy == EarlyExitPolicy::kDarth ? "darth" :
                 early_exit.policy == EarlyExitPolicy::kDarthTrace ? "darth_trace" : "gpruning";
         }
-        std::cout << "[Quiver] Finish summary: policy=" << policy_name
+        std::cout << "[GPipeANN] Finish summary: policy=" << policy_name
                   << " avg_finish_step=" << std::fixed << std::setprecision(2)
                   << avg_finish_step
                   << " finished=" << finish_step_count << "/" << num_queries;
@@ -1953,30 +1953,30 @@ void run_static_batch_search(
         std::cout << std::defaultfloat << std::endl;
     }
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
     {
-        std::vector<QuiverProbeQueryTrace> h_traces(probe_num_traces);
+        std::vector<GPipeANNProbeQueryTrace> h_traces(probe_num_traces);
         CHECK_CUDA(cudaMemcpy(h_traces.data(), d_probe_traces,
-                              sizeof(QuiverProbeQueryTrace) * probe_num_traces,
+                              sizeof(GPipeANNProbeQueryTrace) * probe_num_traces,
                               cudaMemcpyDeviceToHost));
-        if (std::getenv("QUIVER_PROBE_QUERY_BREAKDOWN") != nullptr) {
+        if (std::getenv("GPIPEANN_PROBE_QUERY_BREAKDOWN") != nullptr) {
             print_query_latency_breakdown(h_traces.data(), probe_num_traces);
         }
         print_global_hop_probe_breakdown(h_traces.data(), probe_num_traces);
-        std::vector<QuiverProbeBlockTrace> h_block_traces(probe_num_block_traces);
+        std::vector<GPipeANNProbeBlockTrace> h_block_traces(probe_num_block_traces);
         CHECK_CUDA(cudaMemcpy(h_block_traces.data(), d_probe_block_traces,
-                              sizeof(QuiverProbeBlockTrace) * probe_num_block_traces,
+                              sizeof(GPipeANNProbeBlockTrace) * probe_num_block_traces,
                               cudaMemcpyDeviceToHost));
         print_native_block_timeline_breakdown(
             h_block_traces.data(), probe_num_block_traces, Q);
         print_end_to_end_io_breakdown(poll_stats.end_to_end_io_us);
-        write_probe_cdf_csv(std::getenv("QUIVER_PROBE_CSV"),
+        write_probe_cdf_csv(std::getenv("GPIPEANN_PROBE_CSV"),
                             poll_stats.end_to_end_io_us);
     }
 #endif
 
     // ---- 11. Cleanup ----
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
     CHECK_CUDA(cudaFree(d_probe_traces));
     CHECK_CUDA(cudaFree(d_probe_block_traces));
 #endif
@@ -2006,4 +2006,4 @@ void run_static_batch_search(
     CHECK_CUDA(cudaHostUnregister(found_cnt));
 }
 
-} // namespace quiver
+} // namespace gpipeann

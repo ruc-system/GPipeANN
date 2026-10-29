@@ -6,7 +6,7 @@
 #include "../shared/index/pq_search.hpp"
 #include "../shared/io/loader.hpp"
 
-namespace quiver {
+namespace gpipeann {
 
 enum IOStatus : int32_t {
     IO_IDLE      = 0,
@@ -141,41 +141,41 @@ struct PersistentKernelArgs {
     int* d_early_exit_stop_step;      // [total_queries], -1 when not early-stopped
     int* d_finish_step;               // [total_queries], natural or early-stop finish step
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
-    struct QuiverLightBreakdownTrace* d_breakdown_traces;
-    struct QuiverBreakdownCtaWindowTrace* d_breakdown_cta_windows;
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
+    struct GPipeANNLightBreakdownTrace* d_breakdown_traces;
+    struct GPipeANNBreakdownCtaWindowTrace* d_breakdown_cta_windows;
     int breakdown_sample_count;
     int breakdown_cta_window_count;
     int64_t breakdown_cta_window_ns;
 #endif
 
-#ifdef QUIVER_LATENCY_PROBE
-    struct QuiverProbeQueryTrace* d_probe_traces;       // [probe_max_traces]
+#ifdef GPIPEANN_LATENCY_PROBE
+    struct GPipeANNProbeQueryTrace* d_probe_traces;       // [probe_max_traces]
     int probe_max_traces;
-    struct QuiverProbeBlockTrace* d_probe_block_traces; // [probe_max_block_traces]
+    struct GPipeANNProbeBlockTrace* d_probe_block_traces; // [probe_max_block_traces]
     int probe_max_block_traces;
     int probe_block_trace_offset;
 #endif
 };
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
 
-static constexpr int QUIVER_LIGHT_BREAKDOWN_MAX_COMPUTE_INTERVALS = 128;
-static constexpr int QUIVER_LIGHT_BREAKDOWN_MAX_WAIT_INTERVALS = 256;
-static constexpr int QUIVER_LIGHT_BREAKDOWN_MAX_OVERLAP_INTERVALS = 256;
+static constexpr int GPIPEANN_LIGHT_BREAKDOWN_MAX_COMPUTE_INTERVALS = 128;
+static constexpr int GPIPEANN_LIGHT_BREAKDOWN_MAX_WAIT_INTERVALS = 256;
+static constexpr int GPIPEANN_LIGHT_BREAKDOWN_MAX_OVERLAP_INTERVALS = 256;
 
-__host__ __device__ __forceinline__ int quiver_breakdown_sample_query_id(
+__host__ __device__ __forceinline__ int gpipeann_breakdown_sample_query_id(
     int sample_idx, int total_queries, int sample_count) {
     return shared::breakdown::sample_query_id(
         sample_idx, total_queries, sample_count);
 }
 
-__host__ __device__ __forceinline__ int quiver_breakdown_sample_index(
+__host__ __device__ __forceinline__ int gpipeann_breakdown_sample_index(
     int qid, int total_queries, int sample_count) {
     return shared::breakdown::sample_index(qid, total_queries, sample_count);
 }
 
-struct QuiverLightBreakdownTrace {
+struct GPipeANNLightBreakdownTrace {
     int32_t query_id;
     int32_t valid;
     int32_t compute_interval_count;
@@ -187,15 +187,15 @@ struct QuiverLightBreakdownTrace {
     int64_t useful_compute_ns;
     int64_t resumption_delay_ns;
     int64_t ssd_wait_ns;
-    int64_t compute_start_ns[QUIVER_LIGHT_BREAKDOWN_MAX_COMPUTE_INTERVALS];
-    int64_t compute_end_ns[QUIVER_LIGHT_BREAKDOWN_MAX_COMPUTE_INTERVALS];
-    int64_t wait_start_ns[QUIVER_LIGHT_BREAKDOWN_MAX_WAIT_INTERVALS];
-    int64_t wait_end_ns[QUIVER_LIGHT_BREAKDOWN_MAX_WAIT_INTERVALS];
-    int64_t overlap_start_ns[QUIVER_LIGHT_BREAKDOWN_MAX_OVERLAP_INTERVALS];
-    int64_t overlap_end_ns[QUIVER_LIGHT_BREAKDOWN_MAX_OVERLAP_INTERVALS];
+    int64_t compute_start_ns[GPIPEANN_LIGHT_BREAKDOWN_MAX_COMPUTE_INTERVALS];
+    int64_t compute_end_ns[GPIPEANN_LIGHT_BREAKDOWN_MAX_COMPUTE_INTERVALS];
+    int64_t wait_start_ns[GPIPEANN_LIGHT_BREAKDOWN_MAX_WAIT_INTERVALS];
+    int64_t wait_end_ns[GPIPEANN_LIGHT_BREAKDOWN_MAX_WAIT_INTERVALS];
+    int64_t overlap_start_ns[GPIPEANN_LIGHT_BREAKDOWN_MAX_OVERLAP_INTERVALS];
+    int64_t overlap_end_ns[GPIPEANN_LIGHT_BREAKDOWN_MAX_OVERLAP_INTERVALS];
 };
 
-struct QuiverBreakdownCtaWindowTrace {
+struct GPipeANNBreakdownCtaWindowTrace {
     int32_t valid;
     int32_t block_id;
     int32_t trigger_query_id;
@@ -206,15 +206,15 @@ struct QuiverBreakdownCtaWindowTrace {
     int64_t _pad;
 };
 
-__device__ __forceinline__ int64_t quiver_breakdown_compute_overlap_ns(
-    const QuiverLightBreakdownTrace* tr, int64_t start_ns, int64_t end_ns) {
+__device__ __forceinline__ int64_t gpipeann_breakdown_compute_overlap_ns(
+    const GPipeANNLightBreakdownTrace* tr, int64_t start_ns, int64_t end_ns) {
     if (tr == nullptr || end_ns <= start_ns) return 0;
     int64_t overlap = 0;
     const int n =
         tr->compute_interval_count <
-                QUIVER_LIGHT_BREAKDOWN_MAX_COMPUTE_INTERVALS
+                GPIPEANN_LIGHT_BREAKDOWN_MAX_COMPUTE_INTERVALS
             ? tr->compute_interval_count
-            : QUIVER_LIGHT_BREAKDOWN_MAX_COMPUTE_INTERVALS;
+            : GPIPEANN_LIGHT_BREAKDOWN_MAX_COMPUTE_INTERVALS;
     for (int i = 0; i < n; ++i) {
         const int64_t s =
             tr->compute_start_ns[i] > start_ns ? tr->compute_start_ns[i]
@@ -226,51 +226,51 @@ __device__ __forceinline__ int64_t quiver_breakdown_compute_overlap_ns(
     return overlap;
 }
 
-__device__ __forceinline__ void quiver_breakdown_add_compute_interval(
-    QuiverLightBreakdownTrace* tr, int64_t start_ns, int64_t end_ns) {
+__device__ __forceinline__ void gpipeann_breakdown_add_compute_interval(
+    GPipeANNLightBreakdownTrace* tr, int64_t start_ns, int64_t end_ns) {
     if (tr == nullptr || end_ns <= start_ns) return;
     tr->useful_compute_ns += end_ns - start_ns;
     const int idx = tr->compute_interval_count;
-    if (idx < QUIVER_LIGHT_BREAKDOWN_MAX_COMPUTE_INTERVALS) {
+    if (idx < GPIPEANN_LIGHT_BREAKDOWN_MAX_COMPUTE_INTERVALS) {
         tr->compute_start_ns[idx] = start_ns;
         tr->compute_end_ns[idx] = end_ns;
     }
     tr->compute_interval_count = idx + 1;
 }
 
-__device__ __forceinline__ void quiver_breakdown_add_ssd_wait_interval(
-    QuiverLightBreakdownTrace* tr, int64_t issue_ns, int64_t ready_ns) {
+__device__ __forceinline__ void gpipeann_breakdown_add_ssd_wait_interval(
+    GPipeANNLightBreakdownTrace* tr, int64_t issue_ns, int64_t ready_ns) {
     if (tr == nullptr || ready_ns <= issue_ns) return;
     const int idx = tr->wait_interval_count;
-    if (idx < QUIVER_LIGHT_BREAKDOWN_MAX_WAIT_INTERVALS) {
+    if (idx < GPIPEANN_LIGHT_BREAKDOWN_MAX_WAIT_INTERVALS) {
         tr->wait_start_ns[idx] = issue_ns;
         tr->wait_end_ns[idx] = ready_ns;
     }
     tr->wait_interval_count = idx + 1;
 }
 
-__device__ __forceinline__ void quiver_breakdown_add_overlap_interval(
-    QuiverLightBreakdownTrace* tr, int64_t start_ns, int64_t end_ns) {
+__device__ __forceinline__ void gpipeann_breakdown_add_overlap_interval(
+    GPipeANNLightBreakdownTrace* tr, int64_t start_ns, int64_t end_ns) {
     if (tr == nullptr || end_ns <= start_ns) return;
     const int idx = tr->overlap_interval_count;
-    if (idx < QUIVER_LIGHT_BREAKDOWN_MAX_OVERLAP_INTERVALS) {
+    if (idx < GPIPEANN_LIGHT_BREAKDOWN_MAX_OVERLAP_INTERVALS) {
         tr->overlap_start_ns[idx] = start_ns;
         tr->overlap_end_ns[idx] = end_ns;
     }
     tr->overlap_interval_count = idx + 1;
 }
 
-#endif  // QUIVER_LIGHT_BREAKDOWN
+#endif  // GPIPEANN_LIGHT_BREAKDOWN
 
 // ================================================================
 // Latency probe diagnostics (compile-time gated)
 // ================================================================
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
 
 static constexpr int PROBE_MAX_QUERY_TRACES = 20000;
 static constexpr int PROBE_MAX_HOPS = 64;
 
-struct QuiverProbeHop {
+struct GPipeANNProbeHop {
     int64_t ready_found_ts;
     int64_t compute_start_ts;
     int64_t compute_done_ts;
@@ -278,7 +278,7 @@ struct QuiverProbeHop {
     int32_t spin_iters;
 };
 
-struct QuiverProbeQueryTrace {
+struct GPipeANNProbeQueryTrace {
     int32_t query_id;
     int32_t num_hops;
     int64_t t_sched_start;
@@ -296,10 +296,10 @@ struct QuiverProbeQueryTrace {
     int64_t t_query_done;
     int32_t boot_spin_iters;
     int32_t _pad;
-    QuiverProbeHop hops[PROBE_MAX_HOPS];
+    GPipeANNProbeHop hops[PROBE_MAX_HOPS];
 };
 
-struct QuiverProbeBlockTrace {
+struct GPipeANNProbeBlockTrace {
     int32_t block_id;
     int32_t query_count;
     int64_t t_block_start;
@@ -309,6 +309,6 @@ struct QuiverProbeBlockTrace {
     int32_t _pad;
 };
 
-#endif // QUIVER_LATENCY_PROBE
+#endif // GPIPEANN_LATENCY_PROBE
 
-} // namespace quiver
+} // namespace gpipeann

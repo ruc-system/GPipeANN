@@ -81,7 +81,7 @@ int main() {
           "query 1 should have recall 1/3");
 
   const auto dir = std::filesystem::temp_directory_path() /
-                   ("quiver_search_setup_test_" + std::to_string(::getpid()));
+                   ("gpipeann_search_setup_test_" + std::to_string(::getpid()));
   std::filesystem::create_directories(dir);
 
   const auto disk_index = write_index(dir / "disk.index", 0x11);

@@ -53,7 +53,7 @@ DATA = {
             (69.693, 86800.66),
             (115.58, 101530.68),
         ],
-        "quiver": [
+        "gpipeann": [
             (3.265, 67366.17),
             (5.561, 81680.19),
             (8.235, 88400.72),
@@ -81,7 +81,7 @@ DATA = {
             (104.163, 57910.08),
             (143.546, 64451.45),
         ],
-        "quiver": [
+        "gpipeann": [
             (4.731, 27595.57),
             (5.892, 43198.46),
             (8.083, 47143.5),
@@ -105,7 +105,7 @@ PANELS = [
 SERIES = [
     ("flashanns", "FlashANNS", "#ff7f0e", "s"),
     ("gustann", "GustANN", "#2ca02c", "^"),
-    ("quiver", "GPipeANN(ours)", "#1f77b4", "o"),
+    ("gpipeann", "GPipeANN(ours)", "#1f77b4", "o"),
 ]
 
 OUTPUT_PDF = output_path("abstract-e2e")

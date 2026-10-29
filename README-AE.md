@@ -1,8 +1,8 @@
-# [ATC'26 Artifact] Quiver Artifact Evaluation Guide
+# [ATC'26 Artifact] GPipeANN Artifact Evaluation Guide
 
-Welcome to the artifact repository of the ATC'26 accepted paper: *Quiver: Taming the Throughput-Latency Tradeoff in GPU-SSD ANNS*!
+Welcome to the artifact repository of the ATC'26 accepted paper: *GPipeANN: Taming Throughput-Latency Tradeoff in GPU-SSD ANNS*!
 
-The Quiver artifact is licensed under the [Apache License 2.0](LICENSE).
+The GPipeANN artifact is licensed under the [Apache License 2.0](LICENSE).
 Bundled third-party components retain their respective licenses; see
 [NOTICE](NOTICE) and their accompanying license files.
 
@@ -13,21 +13,21 @@ Should there be any questions, please contact the authors in HotCRP. The authors
 
 ## Main Claims
 
-**Major Claim 1:** At matched Recall@10, Quiver advances the throughput-latency Pareto frontier over existing graph-based GPU-SSD ANNS systems, achieving higher peak throughput and lower P99 latency at matched throughput. (Figures 1 and 5)
+**Major Claim 1:** At matched Recall@10, GPipeANN advances the throughput-latency Pareto frontier over existing graph-based GPU-SSD ANNS systems, achieving higher peak throughput and lower P99 latency at matched throughput. (Figures 1 and 5)
 
-**Major Claim 2:** At matched Recall@10, Quiver outperforms the cluster-based GPU-SSD system FusionANNS in both peak throughput and throughput under P99 latency constraints. (Figure 6)
+**Major Claim 2:** At matched Recall@10, GPipeANN outperforms the cluster-based GPU-SSD system FusionANNS in both peak throughput and throughput under P99 latency constraints. (Figure 6)
 
-**Major Claim 3:** Quiver's In-Kernel Query Switching (+S) and Occupancy-Aware Context Switching (+C) work synergistically to improve performance, while tuning the per-CTA query context count Q_num balances GPU utilization against queueing delay. (Figures 7 and 8)
+**Major Claim 3:** GPipeANN's In-Kernel Query Switching (+S) and Occupancy-Aware Context Switching (+C) work synergistically to improve performance, while tuning the per-CTA query context count Q_num balances GPU utilization against queueing delay. (Figures 7 and 8)
 
 ## Overview
 
 ### Directory structure
 
 ```
-quiver-ae/           # artifact root
+quiver-ae/           # artifact root on the AE server
 |-- bin/             # executable entry points
 |-- src/
-|   |-- quiver/      # kernels and I/O control
+|   |-- gpipeann/      # kernels and I/O control
 |   |-- flashanns/   # FlashANNS
 |   |-- gustann/     # GustANN
 |   +-- shared/      # index, I/O, and metrics
@@ -43,11 +43,11 @@ quiver-ae/           # artifact root
         +-- Pre-executed-logs/ # reference logs
 ```
 
-### Overview of Quiver
+### Overview of GPipeANN
 
 A persistent GPU kernel runs the search. Each CTA holds multiple query contexts. In-kernel query switching (§3.2) runs another ready context when one waits on an SSD read. Occupancy-aware context switching (§3.3) chooses how many contexts stay resident.
 
-<img src="readme-img/overview-small.png" alt="Overview of Quiver" width="500">
+<img src="readme-img/overview-small.png" alt="Overview of GPipeANN" width="500">
 
 ## Environment Setup
 
@@ -61,7 +61,7 @@ A GPU with at least 40 GB of memory is required, since the billion-scale PQ code
 
 Install the following software.
 
-**CUDA.** Quiver, FlashANNS, and GustANN are compiled with CUDA 12.x. On Ubuntu 24.04, install the toolkit and put `nvcc` on `PATH`:
+**CUDA.** GPipeANN, FlashANNS, and GustANN are compiled with CUDA 12.x. On Ubuntu 24.04, install the toolkit and put `nvcc` on `PATH`:
 
 ```bash
 wget -O /tmp/cuda-keyring.deb \
@@ -75,10 +75,11 @@ export PATH=/usr/local/cuda/bin:$PATH
 **SPDK.** SPDK provides the userspace NVMe path. The source is in `deps/spdk`. Install its dependencies and build it:
 
 ```bash
+git submodule update --init --recursive --depth 1
 sudo deps/spdk/scripts/pkgdep.sh
 cd deps/spdk
 ./configure
-make -j
+make -j8
 ```
 
 **FusionANNS.** This baseline is built with xmake. Install Boost, OpenBLAS, liburing, and xmake:
@@ -100,9 +101,9 @@ ssh -p 1558 wpq@536501659b72a831.natapp.cc
 cd /mnt/nvme12/wpq-ae/home/quiver-ae
 ```
 
-### Building Quiver from source
+### Building GPipeANN from source
 
-Compile Quiver and the baselines with:
+Compile GPipeANN and the baselines with:
 
 ```bash
 ./ae/scripts/build.sh
@@ -185,13 +186,13 @@ number is the paper figure, and the suffix is the name in the table above.
 
 ### Detailed claims & Experimental result verification
 
-**Major Claim 1:** At matched Recall@10, Quiver advances the throughput-latency Pareto frontier over existing graph-based GPU-SSD ANNS systems.
+**Major Claim 1:** At matched Recall@10, GPipeANN advances the throughput-latency Pareto frontier over existing graph-based GPU-SSD ANNS systems.
 
 Sub-claims:
 
 - vs. FlashANNS (Figure 5): peak throughput is 28–55% higher. At the same throughput, P99 latency is 47–68% lower.
 - vs. GustANN (Figure 5): the same peak throughput, and P99 latency is 81–87% lower.
-- Figure 1: Quiver dominates both baselines.
+- Figure 1: GPipeANN dominates both baselines.
 
 Verification:
 
@@ -200,9 +201,9 @@ Verification:
 ./ae/scripts/run_all.sh e2e
 ```
 
-**Major Claim 2:** At matched Recall@10, Quiver outperforms the cluster-based GPU-SSD system FusionANNS in peak throughput and under P99 latency constraints.
+**Major Claim 2:** At matched Recall@10, GPipeANN outperforms the cluster-based GPU-SSD system FusionANNS in peak throughput and under P99 latency constraints.
 
-AE clarification: Figure 6 uses Quiver on SIFT/DEEP-1B and recall-calibrated FusionANNS configurations on SIFT/DEEP-100M because the FusionANNS 1B indexes were not ready within the preparation window; this mixed-scale AE comparison is distinct from the paper's 1B-vs-1B evaluation.
+AE clarification: Figure 6 uses GPipeANN on SIFT/DEEP-1B and recall-calibrated FusionANNS configurations on SIFT/DEEP-100M because the FusionANNS 1B indexes were not ready within the preparation window; this mixed-scale AE comparison is distinct from the paper's 1B-vs-1B evaluation.
 
 Sub-claims:
 
@@ -215,7 +216,7 @@ Verification:
 ./ae/scripts/run_all.sh fusion
 ```
 
-**Major Claim 3:** Quiver's In-Kernel Query Switching and Occupancy-Aware Context Switching synergistically improve performance, while Q_num balances GPU utilization against queueing delay.
+**Major Claim 3:** GPipeANN's In-Kernel Query Switching and Occupancy-Aware Context Switching synergistically improve performance, while Q_num balances GPU utilization against queueing delay.
 
 Sub-claims:
 

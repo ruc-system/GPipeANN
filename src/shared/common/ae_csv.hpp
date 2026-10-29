@@ -56,14 +56,14 @@ struct MetricsRow {
 };
 
 inline void append_metrics(const MetricsRow& row) {
-  const char* path = env("QUIVER_AE_METRICS_CSV");
+  const char* path = env("GPIPEANN_AE_METRICS_CSV");
   if (path == nullptr) return;
   std::ostringstream os;
   os.setf(std::ios::fixed);
   os.precision(6);
-  os << env_or("QUIVER_AE_STEM") << ',' << env_or("QUIVER_AE_VARIANT")
-     << ',' << row.system << ',' << env_or("QUIVER_AE_DATASET") << ','
-     << row.ef << ',' << env_or("QUIVER_AE_TARGET_RECALL") << ','
+  os << env_or("GPIPEANN_AE_STEM") << ',' << env_or("GPIPEANN_AE_VARIANT")
+     << ',' << row.system << ',' << env_or("GPIPEANN_AE_DATASET") << ','
+     << row.ef << ',' << env_or("GPIPEANN_AE_TARGET_RECALL") << ','
      << row.num_blocks << ',' << row.mini_batch << ','
      << row.queries_per_block << ',' << row.pipe_width << ',' << row.qps
      << ',' << row.avg_ms << ',' << row.p50_ms << ',' << row.p90_ms << ','
@@ -86,7 +86,7 @@ inline double percentile_sorted(const std::vector<double>& sorted,
 
 inline void append_breakdown_metric(const char* system, const char* metric,
                                     const std::vector<double>& values) {
-  const char* path = env("QUIVER_AE_BREAKDOWN_CSV");
+  const char* path = env("GPIPEANN_AE_BREAKDOWN_CSV");
   if (path == nullptr || values.empty()) return;
   std::vector<double> sorted = values;
   std::sort(sorted.begin(), sorted.end());
@@ -95,9 +95,9 @@ inline void append_breakdown_metric(const char* system, const char* metric,
   std::ostringstream os;
   os.setf(std::ios::fixed);
   os.precision(6);
-  os << env_or("QUIVER_AE_STEM") << ',' << env_or("QUIVER_AE_VARIANT")
-     << ',' << system << ',' << env_or("QUIVER_AE_DATASET") << ','
-     << env_or("QUIVER_AE_TARGET_RECALL") << ',' << metric << ','
+  os << env_or("GPIPEANN_AE_STEM") << ',' << env_or("GPIPEANN_AE_VARIANT")
+     << ',' << system << ',' << env_or("GPIPEANN_AE_DATASET") << ','
+     << env_or("GPIPEANN_AE_TARGET_RECALL") << ',' << metric << ','
      << sorted.size() << ',' << avg << ',' << percentile_sorted(sorted, 50)
      << ',' << percentile_sorted(sorted, 90) << ','
      << percentile_sorted(sorted, 99) << ',' << sorted.back();
@@ -109,13 +109,13 @@ inline void append_breakdown_metric(const char* system, const char* metric,
 
 inline void append_cta_sample(const char* system, int sample_i,
                               double active_pct) {
-  const char* path = env("QUIVER_AE_CTA_SAMPLES_CSV");
+  const char* path = env("GPIPEANN_AE_CTA_SAMPLES_CSV");
   if (path == nullptr) return;
   std::ostringstream os;
   os.setf(std::ios::fixed);
   os.precision(6);
-  os << env_or("QUIVER_AE_STEM") << ',' << env_or("QUIVER_AE_VARIANT")
-     << ',' << system << ',' << env_or("QUIVER_AE_DATASET") << ','
+  os << env_or("GPIPEANN_AE_STEM") << ',' << env_or("GPIPEANN_AE_VARIANT")
+     << ',' << system << ',' << env_or("GPIPEANN_AE_DATASET") << ','
      << sample_i << ',' << active_pct;
   append_line(path,
               "stem,variant,system,dataset,sample_i,cta_active_pct",
@@ -124,13 +124,13 @@ inline void append_cta_sample(const char* system, int sample_i,
 
 inline void append_hop_sample(const char* system, int sample_id, int hop,
                               double wait_us, double compute_us) {
-  const char* path = env("QUIVER_AE_HOP_SAMPLES_CSV");
+  const char* path = env("GPIPEANN_AE_HOP_SAMPLES_CSV");
   if (path == nullptr) return;
   std::ostringstream os;
   os.setf(std::ios::fixed);
   os.precision(6);
-  os << env_or("QUIVER_AE_STEM") << ',' << env_or("QUIVER_AE_VARIANT")
-     << ',' << system << ',' << env_or("QUIVER_AE_DATASET") << ','
+  os << env_or("GPIPEANN_AE_STEM") << ',' << env_or("GPIPEANN_AE_VARIANT")
+     << ',' << system << ',' << env_or("GPIPEANN_AE_DATASET") << ','
      << sample_id << ',' << hop << ',' << wait_us << ',' << compute_us;
   append_line(path,
               "stem,variant,system,dataset,sample_id,hop,wait_us,compute_us",

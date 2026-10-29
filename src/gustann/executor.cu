@@ -22,7 +22,7 @@
 #include "shared/io/loader.hpp"
 #include "shared/io/runtime_stats.hpp"
 #include "../shared/common/ae_csv.hpp"
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
 #include "../shared/common/light_breakdown.hpp"
 #endif
 
@@ -429,13 +429,13 @@ void print_runtime_summary(int mini_batch, int pipe_w, int worker_threads,
                            double ssd_wait_time, double init_time,
                            double fin_time, int pages_read_total,
                            const std::vector<double> &batch_latencies,
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
                            const std::vector<BreakdownCtaWindowSample>
                                &cta_window_samples,
                            const std::vector<BreakdownBatchSample>
                                &breakdown_batch_samples,
 #endif
-#if defined(GUSTANN_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
+#if defined(GUSTANN_LATENCY_PROBE) || defined(GPIPEANN_LIGHT_BREAKDOWN)
                            const std::vector<HopLatencySample> &hop_latencies,
 #endif
 #ifdef GUSTANN_LATENCY_PROBE
@@ -487,7 +487,7 @@ void print_runtime_summary(int mini_batch, int pipe_w, int worker_threads,
   report.mini_batch = mini_batch;
   report.pipe_width = pipe_w;
   shared::print_run_report(report);
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   {
     std::vector<double> compute_samples;
     std::vector<double> io_wait_samples;
@@ -612,7 +612,7 @@ HybridExecutor::HybridExecutor(const shared::Layout &layout,
   fclose(input);
 
   if (config.use_backend == HybridExecutorConfig::SPDK) {
-#if QUIVER_ENABLE_SPDK
+#if GPIPEANN_ENABLE_SPDK
     const auto &ssds = config.ssd_lists;
     if (ssds.empty()) {
       ERROR("NO SSD IN USE!");
@@ -673,11 +673,11 @@ void HybridExecutor::search(const float *qdata, int num_queries, int topk,
   double total_init = 0;
   double total_fin  = 0;
   std::vector<double> all_batch_latencies;
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   std::vector<BreakdownCtaWindowSample> all_cta_window_samples;
   std::vector<BreakdownBatchSample> all_breakdown_batch_samples;
 #endif
-#if defined(GUSTANN_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
+#if defined(GUSTANN_LATENCY_PROBE) || defined(GPIPEANN_LIGHT_BREAKDOWN)
   std::vector<HopLatencySample> all_hop_latencies;
 #endif
 #ifdef GUSTANN_LATENCY_PROBE
@@ -703,7 +703,7 @@ void HybridExecutor::search(const float *qdata, int num_queries, int topk,
           ef_search, (int)layout_.enter_point, starter_.get(), pq_,
           (int)layout_.nodes_per_page, (int)layout_.node_size,
           (int)layout_.data_size, data_type_, loader_, nav_, pipe_w_));
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
       const int total_batches =
           (num_queries + mini_batch_ - 1) / mini_batch_;
       tasks.back()->set_breakdown_total_batches(total_batches);
@@ -752,11 +752,11 @@ void HybridExecutor::search(const float *qdata, int num_queries, int topk,
       tot_fin  += task->time_fin_issue;
     }
     std::vector<double> local_batch_latencies;
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     std::vector<BreakdownCtaWindowSample> local_cta_window_samples;
     std::vector<BreakdownBatchSample> local_breakdown_batch_samples;
 #endif
-#if defined(GUSTANN_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
+#if defined(GUSTANN_LATENCY_PROBE) || defined(GPIPEANN_LIGHT_BREAKDOWN)
     std::vector<HopLatencySample> local_hop_latencies;
 #endif
 #ifdef GUSTANN_LATENCY_PROBE
@@ -767,7 +767,7 @@ void HybridExecutor::search(const float *qdata, int num_queries, int topk,
       local_batch_latencies.insert(local_batch_latencies.end(),
                                    task->batch_latencies.begin(),
                                    task->batch_latencies.end());
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
       local_cta_window_samples.insert(local_cta_window_samples.end(),
                                       task->cta_window_samples.begin(),
                                       task->cta_window_samples.end());
@@ -776,7 +776,7 @@ void HybridExecutor::search(const float *qdata, int num_queries, int topk,
           task->breakdown_batch_samples.begin(),
           task->breakdown_batch_samples.end());
 #endif
-#if defined(GUSTANN_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
+#if defined(GUSTANN_LATENCY_PROBE) || defined(GPIPEANN_LIGHT_BREAKDOWN)
       local_hop_latencies.insert(local_hop_latencies.end(),
                                  task->hop_latencies.begin(),
                                  task->hop_latencies.end());
@@ -799,7 +799,7 @@ void HybridExecutor::search(const float *qdata, int num_queries, int topk,
     all_batch_latencies.insert(all_batch_latencies.end(),
                                local_batch_latencies.begin(),
                                local_batch_latencies.end());
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     all_cta_window_samples.insert(all_cta_window_samples.end(),
                                   local_cta_window_samples.begin(),
                                   local_cta_window_samples.end());
@@ -808,7 +808,7 @@ void HybridExecutor::search(const float *qdata, int num_queries, int topk,
         local_breakdown_batch_samples.begin(),
         local_breakdown_batch_samples.end());
 #endif
-#if defined(GUSTANN_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
+#if defined(GUSTANN_LATENCY_PROBE) || defined(GPIPEANN_LIGHT_BREAKDOWN)
     all_hop_latencies.insert(all_hop_latencies.end(),
                              local_hop_latencies.begin(),
                              local_hop_latencies.end());
@@ -842,10 +842,10 @@ void HybridExecutor::search(const float *qdata, int num_queries, int topk,
                         num_queries, data_type_, topk, ef_search, repeat,
                         end - start, total_gpu, total_ssd, total_init, total_fin,
                         tot_reads.load(), all_batch_latencies,
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
                         all_cta_window_samples, all_breakdown_batch_samples,
 #endif
-#if defined(GUSTANN_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
+#if defined(GUSTANN_LATENCY_PROBE) || defined(GPIPEANN_LIGHT_BREAKDOWN)
                         all_hop_latencies,
 #endif
 #ifdef GUSTANN_LATENCY_PROBE

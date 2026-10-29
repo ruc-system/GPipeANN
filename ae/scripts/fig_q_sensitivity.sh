@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Paper Figure 8. The x-axis Q is queries_per_block * pipe_width:
 #   Q=1  FlashANNS (single context)
-#   Q=2,4,6,8  Quiver with queries_per_block=1,2,3,4 and pipe_width=2
-# Panel (b) profiles Quiver Q=1,2,4,6,8 at pipe-width=1 / num-block=108.
+#   Q=2,4,6,8  GPipeANN with queries_per_block=1,2,3,4 and pipe_width=2
+# Panel (b) profiles GPipeANN Q=1,2,4,6,8 at pipe-width=1 / num-block=108.
 set -euo pipefail
 DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "${DIR}/common.sh"
@@ -15,9 +15,9 @@ export HANG_FLOOR_FIRST="${HANG_FLOOR_FIRST:-300}"
 export HANG_FLOOR="${HANG_FLOOR:-300}"
 
 require_bin flashanns_search
-require_bin quiver_search
+require_bin gpipeann_search
 require_bin flashanns_search "${INSTRUMENTED_BIN_DIR}"
-require_bin quiver_search "${INSTRUMENTED_BIN_DIR}"
+require_bin gpipeann_search "${INSTRUMENTED_BIN_DIR}"
 ae_lock
 use_dataset sift
 OUT="$(prepare_out q_sensitivity)"
@@ -60,26 +60,26 @@ for ef in ${EF_LIST}; do
     --num-blocks-list "${flash_nbs}"
 
   for qpb in ${selected_qpbs}; do
-    quiver_nbs="${FIG8_NUM_BLOCKS_LIST}"
+    gpipeann_nbs="${FIG8_NUM_BLOCKS_LIST}"
     if [[ "${FIG8_SELECTED_ONLY}" == 1 ]]; then
       case "${ef}:${qpb}" in
-        "${EF_RECALL_90}:1") quiver_nbs=756 ;;
-        "${EF_RECALL_90}:2") quiver_nbs=432 ;;
-        "${EF_RECALL_90}:3") quiver_nbs=216 ;;
-        "${EF_RECALL_90}:4") quiver_nbs=108 ;;
-        "${EF_RECALL_92}:1") quiver_nbs=648 ;;
-        "${EF_RECALL_92}:2") quiver_nbs=324 ;;
-        "${EF_RECALL_92}:3"|"${EF_RECALL_92}:4") quiver_nbs=108 ;;
-        "${EF_RECALL_94}:1") quiver_nbs=432 ;;
-        "${EF_RECALL_94}:2") quiver_nbs=216 ;;
-        "${EF_RECALL_94}:3"|"${EF_RECALL_94}:4") quiver_nbs=108 ;;
-        "${EF_RECALL_96}:1") quiver_nbs=324 ;;
-        "${EF_RECALL_96}:2") quiver_nbs=108 ;;
+        "${EF_RECALL_90}:1") gpipeann_nbs=756 ;;
+        "${EF_RECALL_90}:2") gpipeann_nbs=432 ;;
+        "${EF_RECALL_90}:3") gpipeann_nbs=216 ;;
+        "${EF_RECALL_90}:4") gpipeann_nbs=108 ;;
+        "${EF_RECALL_92}:1") gpipeann_nbs=648 ;;
+        "${EF_RECALL_92}:2") gpipeann_nbs=324 ;;
+        "${EF_RECALL_92}:3"|"${EF_RECALL_92}:4") gpipeann_nbs=108 ;;
+        "${EF_RECALL_94}:1") gpipeann_nbs=432 ;;
+        "${EF_RECALL_94}:2") gpipeann_nbs=216 ;;
+        "${EF_RECALL_94}:3"|"${EF_RECALL_94}:4") gpipeann_nbs=108 ;;
+        "${EF_RECALL_96}:1") gpipeann_nbs=324 ;;
+        "${EF_RECALL_96}:2") gpipeann_nbs=108 ;;
         *) echo "no submitted Figure 8(a) point for ef=${ef}, qpb=${qpb}" >&2; exit 1 ;;
       esac
     fi
-    run_search "${OUT}/quiver_${DATASET}_q${qpb}_ef${ef}_pw2.log" \
-      "${BIN_DIR}/bin/quiver_search" \
+    run_search "${OUT}/gpipeann_${DATASET}_q${qpb}_ef${ef}_pw2.log" \
+      "${BIN_DIR}/bin/gpipeann_search" \
       --index-dir "${INDEX_DIR}" \
       --query "${QUERY}" \
       --ground-truth "${GT}" \
@@ -92,19 +92,19 @@ for ef in ${EF_LIST}; do
       --poll-threads "${POLL_THREADS}" \
       --early-exit-policy none \
       --ssd-list-file "${SSD_LIST}" \
-      --num-blocks-list "${quiver_nbs}"
+      --num-blocks-list "${gpipeann_nbs}"
   done
 done
 fi
 
 if [[ "${FIG8_RUN_B}" == 1 ]]; then
-QUIVER_AE_VARIANT=cta
-# Panel (b) is a separate Quiver occupancy run: pipe-width=1, num-block=108,
+GPIPEANN_AE_VARIANT=cta
+# Panel (b) is a separate GPipeANN occupancy run: pipe-width=1, num-block=108,
 # Q = queries_per_block. The paper measured Q=1,2,4,6 this way and filled
 # Q=8; AE measures all five Q values with the same knobs.
 for qpb in 1 2 4 6 8; do
-  run_search "${OUT}/cta_quiver_${DATASET}_q${qpb}_ef${EF_RECALL_90}_pw1.log" \
-    "${INSTRUMENTED_BIN_DIR}/bin/quiver_search" \
+  run_search "${OUT}/cta_gpipeann_${DATASET}_q${qpb}_ef${EF_RECALL_90}_pw1.log" \
+    "${INSTRUMENTED_BIN_DIR}/bin/gpipeann_search" \
     --index-dir "${INDEX_DIR}" \
     --query "${QUERY}" \
     --ground-truth "${GT}" \
@@ -119,7 +119,7 @@ for qpb in 1 2 4 6 8; do
     --ssd-list-file "${SSD_LIST}" \
     --num-blocks-list 108
 done
-unset QUIVER_AE_VARIANT
+unset GPIPEANN_AE_VARIANT
 fi
 
 echo "DONE ${OUT}"

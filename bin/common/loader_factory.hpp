@@ -14,12 +14,12 @@ namespace bin_common {
 
 // Entry-layer helper only: this translates CLI/backend choice into calls to the
 // shared IO constructors during the Task 6 -> Task 7 transition. It is not the
-// canonical backend-policy layer for GustANN, FlashANNS, or Quiver internals,
+// canonical backend-policy layer for GustANN, FlashANNS, or GPipeANN internals,
 // and system code should not treat it as a shared strategy abstraction.
 //
 // SPDK queue/task/runner context capacities are host-side resources. They use
 // fixed defaults rather than being derived from GPU batch or lane counts.
-// runners_per_ssd: number of independent SPDK runner threads per SSD. Quiver
+// runners_per_ssd: number of independent SPDK runner threads per SSD. GPipeANN
 // fans them out across NUMA-0 even cores; flashanns / gustann silently ignore
 // this argument (single runner) for baseline parity.
 inline std::shared_ptr<shared::IndexLoader> create_index_loader(
@@ -27,7 +27,7 @@ inline std::shared_ptr<shared::IndexLoader> create_index_loader(
     const std::vector<std::string>& ssd_lists, int batch, int thread,
     int pipe_w, int queries_per_block, int runners_per_ssd) {
   if (!ssd_lists.empty()) {
-#if QUIVER_ENABLE_SPDK
+#if GPIPEANN_ENABLE_SPDK
     const auto spdk_options = shared::default_spdk_loader_options();
     INFO("Using SPDK backend (submit_queue_capacity={} task_context_count={} "
          "runner_io_context_count={} Q={} runners_per_ssd={})",

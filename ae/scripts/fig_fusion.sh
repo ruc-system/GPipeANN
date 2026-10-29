@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Paper Figure 6 — N=1 per family (PCI_SIFT_1SSD / PCI_DEEP_1SSD).
-# Quiver 1B occupancy sweep vs recall-calibrated FusionANNS 100M. The plotter
+# GPipeANN 1B occupancy sweep vs recall-calibrated FusionANNS 100M. The plotter
 # takes the Pareto front of measured (P99, QPS) points.
 set -euo pipefail
 DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,14 +11,14 @@ apply_paper_knobs
 case "${AE_SCALE}" in
   1b|1B|"") ;;
   *)
-    echo "fig_fusion.sh is configured for mixed scale: Quiver 1B vs FusionANNS 100M" >&2
+    echo "fig_fusion.sh is configured for mixed scale: GPipeANN 1B vs FusionANNS 100M" >&2
     echo "set AE_SCALE=1b, or update both sides together" >&2
     exit 1
     ;;
 esac
 
 FUSION_DATASETS="${FUSION_DATASETS:-sift deep}"
-FUSION_SYSTEMS="${FUSION_SYSTEMS:-quiver fusionanns}"
+FUSION_SYSTEMS="${FUSION_SYSTEMS:-gpipeann fusionanns}"
 
 has_word() {
   local wanted="$1" word
@@ -28,7 +28,7 @@ has_word() {
   return 1
 }
 
-has_word quiver "${FUSION_SYSTEMS}" && require_bin quiver_search
+has_word gpipeann "${FUSION_SYSTEMS}" && require_bin gpipeann_search
 ae_lock
 OUT="$(prepare_out fusion)"
 cd "${ROOT}"
@@ -84,21 +84,21 @@ run_one() {
       return 1
       ;;
   esac
-  local fusion_quiver_q_list quiver_nbs
+  local fusion_gpipeann_q_list gpipeann_nbs
   case "${family}" in
-    sift) fusion_quiver_q_list="${FUSION_QUIVER_Q_LIST_SIFT:-1 2}" ;;
-    deep) fusion_quiver_q_list="${FUSION_QUIVER_Q_LIST_DEEP:-1 2 3 4}" ;;
+    sift) fusion_gpipeann_q_list="${FUSION_GPIPEANN_Q_LIST_SIFT:-1 2}" ;;
+    deep) fusion_gpipeann_q_list="${FUSION_GPIPEANN_Q_LIST_DEEP:-1 2 3 4}" ;;
   esac
-  if has_word quiver "${FUSION_SYSTEMS}"; then
-    for pw in ${QUIVER_PW_LIST}; do
-      for q in ${fusion_quiver_q_list}; do
+  if has_word gpipeann "${FUSION_SYSTEMS}"; then
+    for pw in ${GPIPEANN_PW_LIST}; do
+      for q in ${fusion_gpipeann_q_list}; do
         case "${q}" in
-          1) quiver_nbs="${QUIVER_LOWLAT_NB:-108,216,324}" ;;
-          2) quiver_nbs="${QUIVER_MID_NB:-216,324,432,540,648,756,864,972}" ;;
-          3|4) quiver_nbs="${QUIVER_DEEP_EXTRA_NB:-864,972}" ;;
+          1) gpipeann_nbs="${GPIPEANN_LOWLAT_NB:-108,216,324}" ;;
+          2) gpipeann_nbs="${GPIPEANN_MID_NB:-216,324,432,540,648,756,864,972}" ;;
+          3|4) gpipeann_nbs="${GPIPEANN_DEEP_EXTRA_NB:-864,972}" ;;
         esac
-        run_search "${OUT}/quiver_${DATASET}_ef${ef}_q${q}_pw${pw}_1ssd.log" \
-          "${BIN_DIR}/bin/quiver_search" \
+        run_search "${OUT}/gpipeann_${DATASET}_ef${ef}_q${q}_pw${pw}_1ssd.log" \
+          "${BIN_DIR}/bin/gpipeann_search" \
           --index-dir "${INDEX_DIR}" \
           --query "${QUERY}" \
           --ground-truth "${GT}" \
@@ -111,7 +111,7 @@ run_one() {
           --poll-threads "${POLL_THREADS}" \
           --early-exit-policy none \
           --ssd-list-file "${SSD_LIST}" \
-          --num-blocks-list "${quiver_nbs}"
+          --num-blocks-list "${gpipeann_nbs}"
       done
     done
   fi
@@ -156,4 +156,4 @@ done
 
 echo "DONE ${OUT}"
 echo "sift 1-SSD pci=${PCI_SIFT_1SSD}  deep 1-SSD pci=${PCI_DEEP_1SSD}"
-echo "mixed scale: Quiver=${AE_SCALE}; FusionANNS=100m (explicitly labeled in plot)"
+echo "mixed scale: GPipeANN=${AE_SCALE}; FusionANNS=100m (explicitly labeled in plot)"

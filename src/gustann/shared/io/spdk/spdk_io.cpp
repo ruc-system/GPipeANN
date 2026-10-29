@@ -51,7 +51,7 @@ std::shared_ptr<spdk_wrapper::SpdkWrapper> get_or_create_shared_spdk_wrapper(
 }
 
 int hot_sample_interval_ms_from_env() {
-  const char* env = std::getenv("QUIVER_SPDK_HOT_SAMPLE_MS");
+  const char* env = std::getenv("GPIPEANN_SPDK_HOT_SAMPLE_MS");
   if (env == nullptr) {
     return 100;
   }
@@ -346,7 +346,7 @@ class SpdkIOImpl : public IndexLoader {
     finished = false;
     fail.resize(num_ssd);
     const bool monitor_enabled = [] {
-      const char *env = std::getenv("QUIVER_SPDK_DIAG");
+      const char *env = std::getenv("GPIPEANN_SPDK_DIAG");
       return env != nullptr && std::atoi(env) != 0;
     }();
 
@@ -503,7 +503,7 @@ std::shared_ptr<IndexLoader> create_spdk_loader(const std::vector<std::string> &
                                                 int queue_cap, int thread_cnt,
                                                 int ctx_cnt,
                                                 int runners_per_ssd) {
-  // Baseline ignores runners_per_ssd; accepted for source-compat with quiver.
+  // Baseline ignores runners_per_ssd; accepted for source-compat with gpipeann.
   (void)runners_per_ssd;
   std::shared_ptr<SpdkIOImpl> spdk_io = std::make_shared<SpdkIOImpl>();
   spdk_io->init(ssds, queue_cap, thread_cnt, ctx_cnt);

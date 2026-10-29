@@ -1,15 +1,15 @@
 // Strawman host launchers for §Key Idea ablation.
 //
-// Builds only when QUIVER_BUILD_STRAWMEN=ON. The host scaffolding mirrors
+// Builds only when GPIPEANN_BUILD_STRAWMEN=ON. The host scaffolding mirrors
 // run_persistent_search (search.cu) verbatim so that the only ablated
 // variable is the GPU kernel itself. Each strawman replaces a single design
 // dimension: scheduler discipline, warp granularity, or PQ memory class
 // while keeping streaming admission, per-slot resource layout, and IO state
-// machine identical to Quiver.
+// machine identical to GPipeANN.
 
 #include "search.cuh"
 
-#ifdef QUIVER_BUILD_STRAWMEN
+#ifdef GPIPEANN_BUILD_STRAWMEN
 
 #include "io_control.cuh"
 #include "kernel_core/kernel_helpers.cuh"
@@ -24,7 +24,7 @@
 #include "../shared/common/runtime.hpp"
 #include "../shared/common/run_report.hpp"
 #include "../shared/common/search_state.cuh"
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
 #include "../shared/common/ae_csv.hpp"
 #include "../shared/common/light_breakdown.hpp"
 #endif
@@ -33,13 +33,13 @@
 #include <thread>
 #include <atomic>
 #include <algorithm>
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
 #include <cstring>
 #endif
 #include <numeric>
 #include <nvtx3/nvToolsExt.h>
 
-namespace quiver {
+namespace gpipeann {
 
 namespace {
 
@@ -126,13 +126,13 @@ void run_strawman_launcher(
     shared::DataType data_type,
     int repeat,
     // PQ-in-shared-memory hook: extra dynamic smem per slot (e.g. PQ LUT size).  Default 0 ⇒
-    // strawman uses ONLY the per-slot frontier scratch (= barrier / Quiver layout).
+    // strawman uses ONLY the per-slot frontier scratch (= barrier / GPipeANN layout).
     // When > 0 the launcher (a) calls cudaFuncSetAttribute to opt into
     // CC8.0+ dynamic smem above 48 KB, and (b) reports launch errors cleanly
     // when smem exceeds the per-block hardware cap (rather than crashing).
     size_t extra_smem_per_slot = 0,
     // Thread-topology hook: override block thread count. Default 128 (the
-    // standard-layout strawmen use the standard Quiver block). Naive block
+    // standard-layout strawmen use the standard GPipeANN block). Naive block
     // multi-query sets this to 128*Q so each slot owns a full query executor.
     int threads_per_block_override = 128,
     // Dynamic-smem hook: override the default Q-copy frontier layout.  Used by
@@ -158,7 +158,7 @@ void run_strawman_launcher(
     if (psb_env) poll_submit_batch_size = std::atoi(psb_env);
 
     int prefeed_depth_cfg = 0;
-    const char* pf_env_early = getenv("QUIVER_PREFEED");
+    const char* pf_env_early = getenv("GPIPEANN_PREFEED");
     if (pf_env_early) prefeed_depth_cfg = std::atoi(pf_env_early);
 
     INFO("[strawman {}] B={}, pipe_w={}, num_blocks={}, Q={}, task_slots={}, io_slots={}, T={}, poll_submit_batch_size={}, prefeed={}",
@@ -329,25 +329,25 @@ void run_strawman_launcher(
     }
     int smem = (int)smem_total;
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
-    QuiverLightBreakdownTrace* d_breakdown_traces = nullptr;
-    QuiverBreakdownCtaWindowTrace* d_breakdown_cta_windows = nullptr;
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
+    GPipeANNLightBreakdownTrace* d_breakdown_traces = nullptr;
+    GPipeANNBreakdownCtaWindowTrace* d_breakdown_cta_windows = nullptr;
     const int breakdown_sample_count = std::min(
         num_queries,
-        (int)shared::breakdown::QUIVER_LIGHT_BREAKDOWN_SAMPLE_QUERIES);
+        (int)shared::breakdown::GPIPEANN_LIGHT_BREAKDOWN_SAMPLE_QUERIES);
     const int breakdown_cta_window_count = breakdown_sample_count;
     CHECK_CUDA(cudaMalloc(
         &d_breakdown_traces,
-        sizeof(QuiverLightBreakdownTrace) * breakdown_sample_count));
+        sizeof(GPipeANNLightBreakdownTrace) * breakdown_sample_count));
     CHECK_CUDA(cudaMemset(
         d_breakdown_traces, 0,
-        sizeof(QuiverLightBreakdownTrace) * breakdown_sample_count));
+        sizeof(GPipeANNLightBreakdownTrace) * breakdown_sample_count));
     CHECK_CUDA(cudaMalloc(
         &d_breakdown_cta_windows,
-        sizeof(QuiverBreakdownCtaWindowTrace) * breakdown_cta_window_count));
+        sizeof(GPipeANNBreakdownCtaWindowTrace) * breakdown_cta_window_count));
     CHECK_CUDA(cudaMemset(
         d_breakdown_cta_windows, 0,
-        sizeof(QuiverBreakdownCtaWindowTrace) * breakdown_cta_window_count));
+        sizeof(GPipeANNBreakdownCtaWindowTrace) * breakdown_cta_window_count));
     args.d_breakdown_traces = d_breakdown_traces;
     args.d_breakdown_cta_windows = d_breakdown_cta_windows;
     args.breakdown_sample_count = breakdown_sample_count;
@@ -452,7 +452,7 @@ void run_strawman_launcher(
     int pending_count = 0;
     int ev_alloc_cursor = 0;
     int admit_min_batch = 32;
-    if (const char* env = std::getenv("QUIVER_ADMIT_MIN_BATCH"))
+    if (const char* env = std::getenv("GPIPEANN_ADMIT_MIN_BATCH"))
         admit_min_batch = std::max(1, std::atoi(env));
 
     while (last_done < num_queries) {
@@ -572,13 +572,13 @@ void run_strawman_launcher(
     report.pipe_width = pipe_w;
     shared::print_run_report(report);
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     if (std::strstr(program_name, "PQ-in-shared-memory") != nullptr) {
-        std::vector<QuiverLightBreakdownTrace> traces(
+        std::vector<GPipeANNLightBreakdownTrace> traces(
             breakdown_sample_count);
         CHECK_CUDA(cudaMemcpy(
             traces.data(), d_breakdown_traces,
-            sizeof(QuiverLightBreakdownTrace) * breakdown_sample_count,
+            sizeof(GPipeANNLightBreakdownTrace) * breakdown_sample_count,
             cudaMemcpyDeviceToHost));
         std::vector<double> compute, io_wait, resume;
         for (int i = 0; i < breakdown_sample_count; ++i) {
@@ -586,10 +586,10 @@ void run_strawman_launcher(
             if (!tr.valid || tr.query_done_ns <= tr.query_start_ns) continue;
             const int wait_n = std::min(
                 tr.wait_interval_count,
-                QUIVER_LIGHT_BREAKDOWN_MAX_WAIT_INTERVALS);
+                GPIPEANN_LIGHT_BREAKDOWN_MAX_WAIT_INTERVALS);
             const int compute_n = std::min(
                 tr.compute_interval_count,
-                QUIVER_LIGHT_BREAKDOWN_MAX_COMPUTE_INTERVALS);
+                GPIPEANN_LIGHT_BREAKDOWN_MAX_COMPUTE_INTERVALS);
             std::vector<std::pair<int64_t, int64_t>> waits;
             for (int h = 0; h < wait_n; ++h)
                 waits.push_back({tr.wait_start_ns[h], tr.wait_end_ns[h]});
@@ -630,7 +630,7 @@ void run_strawman_launcher(
     CHECK_CUDA(cudaFreeHost(d_out_fc));
     CHECK_CUDA(cudaFree(d_next_query));
     CHECK_CUDA(cudaFree(d_queries_done));
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     CHECK_CUDA(cudaFree(d_breakdown_traces));
     CHECK_CUDA(cudaFree(d_breakdown_cta_windows));
 #endif
@@ -889,6 +889,6 @@ void run_naive_block_multi_query_search(
     }
 }
 
-}  // namespace quiver
+}  // namespace gpipeann
 
-#endif  // QUIVER_BUILD_STRAWMEN
+#endif  // GPIPEANN_BUILD_STRAWMEN

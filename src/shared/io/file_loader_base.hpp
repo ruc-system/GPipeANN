@@ -14,7 +14,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-namespace quiver_debug {
+namespace gpipeann_debug {
 
 template <class Request, class = void>
 struct HasCompletionTime : std::false_type {};
@@ -125,4 +125,4 @@ class FileLoaderBase : public Interface {
   }
 };
 
-}  // namespace quiver_debug
+}  // namespace gpipeann_debug

@@ -1,7 +1,7 @@
 // Strawman naive block multi-query: duplicate a 128-thread query executor Q
 // times inside one CUDA block.
 //
-// Built only when -DQUIVER_BUILD_STRAWMEN=ON. Q=1 is the original one-query
+// Built only when -DGPIPEANN_BUILD_STRAWMEN=ON. Q=1 is the original one-query
 // baseline with one resource set. Q>1 naively creates 128*Q block threads and
 // Q independent resource sets, one per query slot.
 
@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-#include "../src/quiver/search.cuh"
+#include "../src/gpipeann/search.cuh"
 #include "shared/common/log_config.hpp"
 
 #include "common/cli_shared.hpp"
@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
       run_num_blocks, "--num-blocks-list");
 
   auto setup = bin_common::prepare_search_setup(shared_args);
-  if (setup.layout.max_m0 != quiver::kNaiveBlockMultiQueryThreadsPerQuery) {
+  if (setup.layout.max_m0 != gpipeann::kNaiveBlockMultiQueryThreadsPerQuery) {
     std::cerr << "strawmen_naive_block_multi_query supports only max_m=128; "
               << "got max_m=" << setup.layout.max_m0 << std::endl;
     return 1;
@@ -127,7 +127,7 @@ int main(int argc, char** argv) {
         poll_threads, pipe_width, queries_per_block);
     if (!loader) return 1;
 
-    quiver::run_naive_block_multi_query_search(
+    gpipeann::run_naive_block_multi_query_search(
         setup.layout, setup.data_type, pipe_width, poll_threads, run_nb,
         loader, setup.pq.get(), setup.nav.get(),
         static_cast<int>(setup.layout.enter_point), starter.get(),

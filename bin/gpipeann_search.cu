@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "../src/quiver/search.cuh"
+#include "../src/gpipeann/search.cuh"
 #include "shared/common/log_config.hpp"
 #include "shared/io/spdk_loader_config.hpp"
 
@@ -45,9 +45,9 @@ std::vector<int> parse_int_list_arg(const std::string& raw,
   return values;
 }
 
-quiver::EarlyExitPolicy parse_early_exit_policy(const std::string& raw) {
-  if (raw == "none") return quiver::EarlyExitPolicy::kDefault;
-  if (raw == "gpruning") return quiver::EarlyExitPolicy::kGPruning;
+gpipeann::EarlyExitPolicy parse_early_exit_policy(const std::string& raw) {
+  if (raw == "none") return gpipeann::EarlyExitPolicy::kDefault;
+  if (raw == "gpruning") return gpipeann::EarlyExitPolicy::kGPruning;
   std::cerr << "invalid --early-exit-policy: " << raw
             << " (expected gpruning or none)" << std::endl;
   std::exit(1);
@@ -58,7 +58,7 @@ quiver::EarlyExitPolicy parse_early_exit_policy(const std::string& raw) {
 int main(int argc, char** argv) {
   shared::configure_logging_from_env();
 
-  argparse::ArgumentParser program("quiver_search", "",
+  argparse::ArgumentParser program("gpipeann_search", "",
                                    argparse::default_arguments::none);
 
   bin_common::SharedCliArgs shared_args;
@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
   bool skip_nav = false;
   bool per_step_recall = false;
   float recall_threshold = 0.9f;
-  std::string step_recall_csv = "quiver_step_recall.csv";
+  std::string step_recall_csv = "gpipeann_step_recall.csv";
   std::string final_recall_csv;
   std::string result_prefix;
   std::string early_exit_policy_name = "gpruning";
@@ -96,12 +96,12 @@ int main(int argc, char** argv) {
       .default_value(spdk_options.runner_io_context_count)
       .store_into(spdk_options.runner_io_context_count)
       .help("Per-runner IO callback context pool size; one context tracks one SSD IO.");
-#ifndef QUIVER_FIXED_PIPE_WIDTH
+#ifndef GPIPEANN_FIXED_PIPE_WIDTH
   program.add_argument("--pipe-width")
       .default_value(2)
       .store_into(pipe_width);
 #endif
-#ifndef QUIVER_FIXED_QUERIES_PER_BLOCK
+#ifndef GPIPEANN_FIXED_QUERIES_PER_BLOCK
   program.add_argument("--queries-per-block")
       .default_value(1)
       .store_into(queries_per_block);
@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
       .store_into(recall_threshold)
       .help("Per-query recall threshold for --per-step-recall.");
   program.add_argument("--step-recall-csv")
-      .default_value(std::string("quiver_step_recall.csv"))
+      .default_value(std::string("gpipeann_step_recall.csv"))
       .store_into(step_recall_csv)
       .help("CSV output path for --per-step-recall.");
   program.add_argument("--final-recall-csv")
@@ -144,7 +144,7 @@ int main(int argc, char** argv) {
   program.add_argument("--early-exit-policy")
       .default_value(std::string("gpruning"))
       .store_into(early_exit_policy_name)
-      .help("Quiver early-exit policy: gpruning or none. Default: gpruning.");
+      .help("GPipeANN early-exit policy: gpruning or none. Default: gpruning.");
 
   try {
     program.parse_args(argc, argv);
@@ -156,12 +156,12 @@ int main(int argc, char** argv) {
   if (const int rc = bin_common::fail_if_spdk_requested_without_support(shared_args)) {
     return rc;
   }
-#ifdef QUIVER_FIXED_PIPE_WIDTH
-  pipe_width = bin_common::resolve_fixed_value(pipe_width, QUIVER_FIXED_PIPE_WIDTH);
+#ifdef GPIPEANN_FIXED_PIPE_WIDTH
+  pipe_width = bin_common::resolve_fixed_value(pipe_width, GPIPEANN_FIXED_PIPE_WIDTH);
 #endif
-#ifdef QUIVER_FIXED_QUERIES_PER_BLOCK
+#ifdef GPIPEANN_FIXED_QUERIES_PER_BLOCK
   queries_per_block = bin_common::resolve_fixed_value(
-      queries_per_block, QUIVER_FIXED_QUERIES_PER_BLOCK);
+      queries_per_block, GPIPEANN_FIXED_QUERIES_PER_BLOCK);
 #endif
   if (spdk_options.submit_queue_capacity <= 0) {
     std::cerr << "--spdk-submit-queue-cap must be positive" << std::endl;
@@ -191,19 +191,19 @@ int main(int argc, char** argv) {
       if (v >= 1 && v <= 32) {
         runners_per_ssd = v;
       } else {
-        std::cerr << "[Quiver] SPDK_RUNNERS_PER_SSD out of range [1,32]: "
+        std::cerr << "[GPipeANN] SPDK_RUNNERS_PER_SSD out of range [1,32]: "
                   << env << " (ignored)" << std::endl;
       }
     }
   }
-  std::cout << "[Quiver] runners_per_ssd=" << runners_per_ssd
+  std::cout << "[GPipeANN] runners_per_ssd=" << runners_per_ssd
             << (runners_per_ssd_cli_used ? " (cli)" : "") << std::endl;
 
-  quiver::EarlyExitOptions early_exit;
+  gpipeann::EarlyExitOptions early_exit;
   early_exit.policy = parse_early_exit_policy(early_exit_policy_name);
   early_exit.gpruning_warmup_steps = 10;
   early_exit.gpruning_patience = 8;
-  std::cout << "[Quiver] early-exit policy="
+  std::cout << "[GPipeANN] early-exit policy="
             << (early_exit.enabled() ? "gpruning" : "none") << std::endl;
 
   const std::vector<int> run_num_blocks =
@@ -232,14 +232,14 @@ int main(int argc, char** argv) {
       return 1;
     }
     step_recall_gt = bin_common::load_ground_truth(shared_args.ground_truth_file);
-    std::cout << "[Quiver] per-step recall enabled: threshold="
+    std::cout << "[GPipeANN] per-step recall enabled: threshold="
               << recall_threshold << " csv=" << step_recall_csv
               << " gt_count=" << step_recall_gt.count
               << " gt_width=" << step_recall_gt.width << std::endl;
   }
   auto starter = bin_common::load_starter_page(setup);
   if (skip_nav) {
-    std::cout << "[Quiver] --skip-nav enabled: nav graph disabled; "
+    std::cout << "[GPipeANN] --skip-nav enabled: nav graph disabled; "
               << "all queries start from global enter_point="
               << setup.layout.enter_point << std::endl;
   }
@@ -249,7 +249,7 @@ int main(int argc, char** argv) {
                 << shared::colorize("============================================================",
                                     shared::ansi_gray())
                 << "\n"
-                << shared::colorize("Quiver Sweep:", shared::ansi_cyan(), true)
+                << shared::colorize("GPipeANN Sweep:", shared::ansi_cyan(), true)
                 << " num_blocks=" << run_nb
                 << " pipe_width=" << pipe_width
                 << " queries_per_block=" << queries_per_block << "\n"
@@ -261,7 +261,7 @@ int main(int argc, char** argv) {
 
     std::shared_ptr<shared::IndexLoader> loader;
     if (!setup.ssd_lists.empty()) {
-#if QUIVER_ENABLE_SPDK
+#if GPIPEANN_ENABLE_SPDK
       spdlog::info("Using SPDK backend (submit_queue_capacity={} "
                    "task_context_count={} runner_io_context_count={} "
                    "runners_per_ssd={})",
@@ -285,7 +285,7 @@ int main(int argc, char** argv) {
       return 1;
     }
 
-    quiver::run_persistent_search(
+    gpipeann::run_persistent_search(
         setup.layout, setup.data_type, pipe_width, poll_threads, run_nb, loader,
         setup.pq.get(),
         skip_nav ? nullptr : setup.nav.get(),
@@ -295,13 +295,13 @@ int main(int argc, char** argv) {
         setup.distances.get(), setup.found_counts.get(),
         queries_per_block, shared_args.repeat,
         per_step_recall
-            ? quiver::PerStepRecallOptions{
+            ? gpipeann::PerStepRecallOptions{
                   step_recall_gt.values.get(),
                   static_cast<int>(step_recall_gt.width),
                   static_cast<int>(step_recall_gt.count),
                   recall_threshold,
                   step_recall_csv.c_str()}
-            : quiver::PerStepRecallOptions{},
+            : gpipeann::PerStepRecallOptions{},
         early_exit);
 
     bin_common::print_recall_report(shared_args, setup);

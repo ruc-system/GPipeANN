@@ -47,7 +47,7 @@ STACKED_LATENCY_MS = {
 GROUPED_SERIES = [
     ("FlashANNS", "FlashANNS", "#fbb4ae", "\\\\\\"),
     ("+S", "Baseline", "#b3cde3", "//"),
-    ("+S+C", "Quiver", "#ccebc5", "--"),
+    ("+S+C", "GPipeANN", "#ccebc5", "--"),
 ]
 STACK_ORDER = ["H2D", "Launch", "D2H", "Compute", "IO"]
 STACK_COLORS = {
@@ -102,7 +102,7 @@ def configure_fonts() -> None:
 PRE_COMPUTED_QPS = {
     "FlashANNS": [68.5295, 58.80331, 51.47912, 39.63364, 30.67468, 14.10973],
     "Baseline": [82.87613, 73.77183, 61.08722, 52.97783, 35.66908, 23.29384],
-    "Quiver": [98.59007, 92.71663, 75.88163, 59.08807, 44.83481, 27.75788],
+    "GPipeANN": [98.59007, 92.71663, 75.88163, 59.08807, 44.83481, 27.75788],
 }
 
 

@@ -32,22 +32,22 @@ int main() {
           "invalid SPDK_BASE_LBA should fall back to zero");
 
   unsetenv("SPDK_BASE_LBA");
-  unsetenv("QUIVER_SPDK_BLOCK_OFFSET");
+  unsetenv("GPIPEANN_SPDK_BLOCK_OFFSET");
   require(shared::spdk_block_offset_from_env() == 0,
-          "QUIVER_SPDK_BLOCK_OFFSET should default to zero");
+          "GPIPEANN_SPDK_BLOCK_OFFSET should default to zero");
 
-  setenv("QUIVER_SPDK_BLOCK_OFFSET", "1", 1);
+  setenv("GPIPEANN_SPDK_BLOCK_OFFSET", "1", 1);
   require(shared::spdk_block_offset_from_env() == 1,
-          "QUIVER_SPDK_BLOCK_OFFSET should parse a one-page offset");
+          "GPIPEANN_SPDK_BLOCK_OFFSET should parse a one-page offset");
 
-  setenv("QUIVER_SPDK_BLOCK_OFFSET", "", 1);
+  setenv("GPIPEANN_SPDK_BLOCK_OFFSET", "", 1);
   require(shared::spdk_block_offset_from_env() == 0,
-          "empty QUIVER_SPDK_BLOCK_OFFSET should behave like unset");
+          "empty GPIPEANN_SPDK_BLOCK_OFFSET should behave like unset");
 
-  setenv("QUIVER_SPDK_BLOCK_OFFSET", "-1", 1);
+  setenv("GPIPEANN_SPDK_BLOCK_OFFSET", "-1", 1);
   require(shared::spdk_block_offset_from_env() == 0,
-          "negative QUIVER_SPDK_BLOCK_OFFSET should fall back to zero");
+          "negative GPIPEANN_SPDK_BLOCK_OFFSET should fall back to zero");
 
-  unsetenv("QUIVER_SPDK_BLOCK_OFFSET");
+  unsetenv("GPIPEANN_SPDK_BLOCK_OFFSET");
   return 0;
 }

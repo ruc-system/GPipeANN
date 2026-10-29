@@ -12,7 +12,7 @@
 #ifdef FLASHANNS_LATENCY_PROBE
 #include "probe_report.cuh"
 #endif
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
 #include "../shared/common/light_breakdown.hpp"
 #include "../shared/common/ae_csv.hpp"
 #endif
@@ -66,7 +66,7 @@ static bool should_sample_batch_case(int batch_idx, int num_batches,
 }
 #endif
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
 struct FlashBreakdownBatchSample {
     int batch_id = -1;
     double compute_us = 0.0;
@@ -81,7 +81,7 @@ struct FlashBreakdownBatchSample {
 static int64_t flashanns_breakdown_cta_window_ns_from_env() {
     const char* env = std::getenv("FLASHANNS_BREAKDOWN_CTA_WINDOW_US");
     if (env == nullptr || env[0] == '\0') {
-        env = std::getenv("QUIVER_BREAKDOWN_CTA_WINDOW_US");
+        env = std::getenv("GPIPEANN_BREAKDOWN_CTA_WINDOW_US");
     }
     if (env == nullptr || env[0] == '\0') return 1000LL * 1000LL;
     char* end = nullptr;
@@ -324,12 +324,12 @@ void run_persistent_search(
     CHECK_CUDA(cudaMalloc(&d_next_query,   sizeof(int)));
     CHECK_CUDA(cudaMalloc(&d_queries_done, sizeof(int)));
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     const int num_batches_for_tech = (num_queries + B - 1) / B;
     FlashLightBreakdownTrace* d_breakdown_traces = nullptr;
     const int breakdown_batch_sample_count =
         std::min(num_batches_for_tech,
-                 (int)shared::breakdown::QUIVER_LIGHT_BREAKDOWN_SAMPLE_BATCHES);
+                 (int)shared::breakdown::GPIPEANN_LIGHT_BREAKDOWN_SAMPLE_BATCHES);
     const int breakdown_sample_count = breakdown_batch_sample_count;
     FlashBreakdownCtaWindowTrace* d_breakdown_cta_windows = nullptr;
     const int breakdown_cta_window_count = breakdown_sample_count;
@@ -392,7 +392,7 @@ void run_persistent_search(
 #ifdef FLASHANNS_LATENCY_PROBE
     args.d_probe_traces = d_probe_traces;
 #endif
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     args.d_breakdown_traces = d_breakdown_traces;
     args.d_breakdown_cta_windows = d_breakdown_cta_windows;
     args.breakdown_sample_count = breakdown_sample_count;
@@ -517,14 +517,14 @@ void run_persistent_search(
         // block maps 1:1 to a query within that batch (qid = blockIdx.x).
         h_comm->total_queries = batch_size;
         h_comm->num_blocks    = blocks_this;
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         args.batch_query_offset = batch_off;
 #endif
         double tb_after_nav = shared::elapsed();
 
         // Launch kernel
         nvtxRangePush("SearchKernel");
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         double tb_before_kernel_launch = shared::elapsed();
 #endif
         if (data_type == shared::UINT8)
@@ -533,7 +533,7 @@ void run_persistent_search(
             persistent_search_kernel<int8_t><<<blocks_this, 128, smem>>>(args);
         else
             persistent_search_kernel<float><<<blocks_this, 128, smem>>>(args);
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         double tb_after_kernel_launch = shared::elapsed();
 #endif
 
@@ -553,7 +553,7 @@ void run_persistent_search(
                               sizeof(int) * batch_size,
                               cudaMemcpyDeviceToHost));
         nvtxRangePop(); // D2H
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         double tb_after_d2h = shared::elapsed();
 #endif
 
@@ -565,7 +565,7 @@ void run_persistent_search(
 #endif
 
         double tb1 = shared::elapsed();
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         CHECK_CUDA(cudaMemcpy(h_breakdown_traces.data(),
                               d_breakdown_traces,
                               sizeof(FlashLightBreakdownTrace) *
@@ -697,7 +697,7 @@ void run_persistent_search(
     report.pipe_width = pipe_w;
     shared::print_run_report(report);
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     {
         std::vector<double> compute_samples;
         std::vector<double> io_wait_samples;
@@ -805,7 +805,7 @@ void run_persistent_search(
 #ifdef FLASHANNS_LATENCY_PROBE
     CHECK_CUDA(cudaFree(d_probe_traces));
 #endif
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     CHECK_CUDA(cudaFree(d_breakdown_traces));
     CHECK_CUDA(cudaFree(d_breakdown_cta_windows));
 #endif

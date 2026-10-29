@@ -18,7 +18,7 @@
 
 #include "../../io_control.cuh"
 
-namespace quiver {
+namespace gpipeann {
 
 // ----------------------------------------------------------------------------
 // StreamingDispatch
@@ -124,4 +124,4 @@ struct StaticDispatch {
     }
 };
 
-} // namespace quiver
+} // namespace gpipeann

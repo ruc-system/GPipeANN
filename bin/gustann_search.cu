@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
       run_mini_batches, "--mini-batch-list");
 
   auto setup = bin_common::prepare_search_setup(shared_args);
-#if !QUIVER_ENABLE_SPDK
+#if !GPIPEANN_ENABLE_SPDK
   if (!setup.ssd_lists.empty()) {
     return bin_common::fail_without_spdk_support();
   }

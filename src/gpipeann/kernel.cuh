@@ -1,6 +1,6 @@
 #pragma once
 
-// Quiver kernel entry point (Phase 1 refactor aggregator).
+// GPipeANN kernel entry point (Phase 1 refactor aggregator).
 //
 // This file used to contain the 4 kernel helper functions
 // (persistent_merge_data, persistent_visit_select, persistent_select_next,
@@ -12,7 +12,7 @@
 //   kernel_core/kernel_qi.cuh       — persistent_search_kernel_qi (Q-interleave)
 //
 // This file is kept as a compatibility aggregator so that existing callers
-// (currently only quiver/search.cu) do not need to change their #include.
+// (currently only gpipeann/search.cu) do not need to change their #include.
 
 #include "kernel_core/kernel_helpers.cuh"
 #include "kernel_core/kernel_q1.cuh"

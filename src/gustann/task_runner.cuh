@@ -36,7 +36,7 @@ struct SubLane {
   double wait_start_time = 0.0;
 };
 
-#if defined(GUSTANN_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
+#if defined(GUSTANN_LATENCY_PROBE) || defined(GPIPEANN_LIGHT_BREAKDOWN)
 struct HopLatencySample {
   int hop_index = 0;
   double wait_us = 0.0;
@@ -57,7 +57,7 @@ struct GustannBatchIoTrace {
 };
 #endif
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
 struct BreakdownCtaWindowSample {
   double window_us = 0.0;
   double pure_io_wait_us = 0.0;
@@ -104,7 +104,7 @@ class TaskRunner {
   double time_gpu_issue;
   double time_ssd_issue;
   double time_fin_issue;
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   double time_h2d;
   double time_d2h;
   double time_resumption;
@@ -115,14 +115,14 @@ class TaskRunner {
   // Per-batch latency tracing.
   std::vector<double> batch_latencies;
   double batch_start_time;
-#if defined(GUSTANN_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
+#if defined(GUSTANN_LATENCY_PROBE) || defined(GPIPEANN_LIGHT_BREAKDOWN)
   std::vector<HopLatencySample> hop_latencies;
 #endif
 #ifdef GUSTANN_LATENCY_PROBE
   std::vector<GustannProbeQueryTrace> probe_traces;
   std::vector<GustannBatchIoTrace> batch_io_tail_cases;
 #endif
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   std::vector<BreakdownCtaWindowSample> cta_window_samples;
   std::vector<BreakdownBatchSample> breakdown_batch_samples;
   void set_breakdown_total_batches(int total_batches);
@@ -134,7 +134,7 @@ class TaskRunner {
 #ifdef GUSTANN_LATENCY_PROBE
   void maybe_keep_batch_io_tail_case(int w);
 #endif
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   void record_breakdown_batch_sample(double done_time);
   void start_breakdown_cta_window();
   void finish_breakdown_cta_window(double now);
@@ -166,7 +166,7 @@ class TaskRunner {
   int pipe_w_;
   std::vector<SubLane> sub_lanes_;
   cudaStream_t stream_ = nullptr;
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   cudaEvent_t h2d_start_event_ = nullptr;
   cudaEvent_t h2d_done_event_ = nullptr;
   cudaEvent_t d2h_start_event_ = nullptr;
@@ -195,10 +195,10 @@ class TaskRunner {
   uint64_t batch_io_trace_seen_ = 0;
   bool current_batch_has_kept_io_trace_ = false;
 #endif
-#if defined(GUSTANN_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
+#if defined(GUSTANN_LATENCY_PROBE) || defined(GPIPEANN_LIGHT_BREAKDOWN)
   int query_base_ = 0;
 #endif
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   int breakdown_total_batches_ = 0;
   double breakdown_batch_start_time_ = 0.0;
   double breakdown_batch_h2d_time_ = 0.0;
@@ -219,7 +219,7 @@ class TaskRunner {
       state_;
   int qcnt_ = 0;
   bool batch_finished_ = true;
-#if defined(GUSTANN_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
+#if defined(GUSTANN_LATENCY_PROBE) || defined(GPIPEANN_LIGHT_BREAKDOWN)
   int current_hop_index_ = 0;
   int pending_hop_index_ = 0;
   double pending_hop_wait_us_ = 0.0;

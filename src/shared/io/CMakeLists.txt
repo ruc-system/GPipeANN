@@ -34,7 +34,7 @@ target_link_libraries(spdk_write_buffer_test
 target_compile_options(spdk_write_buffer_test
   PRIVATE "-O2" "-g")
 
-if (QUIVER_ENABLE_SPDK)
+if (GPIPEANN_ENABLE_SPDK)
   add_subdirectory(spdk)
   target_link_libraries(shared_io_lib
     PUBLIC shared_spdk_io)

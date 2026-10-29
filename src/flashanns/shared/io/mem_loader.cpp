@@ -3,7 +3,7 @@
 
 namespace shared {
 namespace {
-using Base = quiver_debug::FileLoaderBase<IndexLoader, IoRequest, DirectIoRequest>;
+using Base = gpipeann_debug::FileLoaderBase<IndexLoader, IoRequest, DirectIoRequest>;
 class FileLoader final : public Base {
  public:
   using Base::Base;

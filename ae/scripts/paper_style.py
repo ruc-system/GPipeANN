@@ -25,9 +25,9 @@ PALETTE = ("#1F77B4", "#FF7F0E", "#2CA02C", "#9467BD")
 RECALL_PALETTE = ("#D95F02", "#1F78B4", "#33A02C", "#6A3D9A")
 MARKERS = ("o", "^", "v", "s", "D")
 HATCHES = ("---", "|||", "///", "\\\\\\")
-SYSTEM_ORDER = ("Quiver", "FlashANNS", "GustANN", "+S", "FusionANNS")
+SYSTEM_ORDER = ("GPipeANN", "FlashANNS", "GustANN", "+S", "FusionANNS")
 SYSTEM_STYLE = {
-    "Quiver": {"color": PALETTE[0], "marker": "o", "hatch": HATCHES[0]},
+    "GPipeANN": {"color": PALETTE[0], "marker": "o", "hatch": HATCHES[0]},
     "FlashANNS": {"color": PALETTE[1], "marker": "^", "hatch": HATCHES[1]},
     "GustANN": {"color": PALETTE[2], "marker": "v", "hatch": HATCHES[2]},
     "+S": {"color": PALETTE[3], "marker": "s", "hatch": HATCHES[3]},
@@ -188,10 +188,10 @@ def line_style(system: str) -> dict:
 def bar_style(system: str, index: int = 0, palette: str = "ablation") -> dict:
     colors = {
         "ablation": {
-            "FlashANNS": "#FBB4AE", "+S": "#B3CDE3", "Quiver": "#CCEBC5",
+            "FlashANNS": "#FBB4AE", "+S": "#B3CDE3", "GPipeANN": "#CCEBC5",
         },
         "utilization": {
-            "FlashANNS": "#FDD9A6", "GustANN": "#CCEBC5", "Quiver": "#B3CDE3",
+            "FlashANNS": "#FDD9A6", "GustANN": "#CCEBC5", "GPipeANN": "#B3CDE3",
         },
     }
     style = SYSTEM_STYLE.get(system)

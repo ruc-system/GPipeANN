@@ -21,7 +21,7 @@ inline long spdk_base_lba_from_env() {
 }
 
 inline long spdk_block_offset_from_env() {
-  const char* env = std::getenv("QUIVER_SPDK_BLOCK_OFFSET");
+  const char* env = std::getenv("GPIPEANN_SPDK_BLOCK_OFFSET");
   if (env == nullptr || *env == '\0') {
     return 0;
   }

@@ -23,7 +23,7 @@
 #include "../inkernel_nav.cuh"
 #include "../policies/dispatch.cuh"
 
-namespace quiver {
+namespace gpipeann {
 namespace strawmen {
 
 constexpr int PQ_IN_GMEM_MAX_Q = 8;
@@ -602,4 +602,4 @@ __global__ void persistent_search_kernel_pq_in_gmem(PersistentKernelArgs args)
 }
 
 }  // namespace strawmen
-}  // namespace quiver
+}  // namespace gpipeann

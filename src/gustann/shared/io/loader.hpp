@@ -61,7 +61,7 @@ std::shared_ptr<IndexLoader> create_mem_loader_sync(
     int64_t io_bytes = PAGE_SIZE);
 
 // Note: runners_per_ssd is accepted for source compatibility with the
-// quiver-side multi-runner refactor, but in this baseline implementation it
+// gpipeann-side multi-runner refactor, but in this baseline implementation it
 // is ignored — behavior is unchanged from the single-runner-per-SSD model.
 std::shared_ptr<IndexLoader> create_spdk_loader(
     const std::vector<std::string> &ssds, int queue_cap, int thread_cnt,

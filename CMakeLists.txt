@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.18)
 
-project(Quiver LANGUAGES CXX)
+project(GPipeANN LANGUAGES CXX)
 
 enable_language(CUDA)
 enable_language(C)
@@ -17,23 +17,23 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Strawman ablation binaries: strawman design paths used to defend §Key Idea.
 # Default ON so experiment builds include the full strawman set. Flip OFF for
 # lean production-style builds.
-option(QUIVER_BUILD_STRAWMEN "Build strawman ablation binaries" ON)
-option(QUIVER_ENABLE_SPDK "Build SPDK-backed IO support" ON)
-option(QUIVER_BUILD_DISKANN_TOOLS "Build offline DiskANN index tools" ON)
-option(QUIVER_ENABLE_LIGHT_BREAKDOWN
+option(GPIPEANN_BUILD_STRAWMEN "Build strawman ablation binaries" ON)
+option(GPIPEANN_ENABLE_SPDK "Build SPDK-backed IO support" ON)
+option(GPIPEANN_BUILD_DISKANN_TOOLS "Build offline DiskANN index tools" ON)
+option(GPIPEANN_ENABLE_LIGHT_BREAKDOWN
        "Enable lightweight AE breakdown instrumentation" OFF)
 
-if (QUIVER_ENABLE_SPDK)
-  add_compile_definitions(QUIVER_ENABLE_SPDK=1 USE_SPDK)
+if (GPIPEANN_ENABLE_SPDK)
+  add_compile_definitions(GPIPEANN_ENABLE_SPDK=1 USE_SPDK)
 else()
-  add_compile_definitions(QUIVER_ENABLE_SPDK=0)
+  add_compile_definitions(GPIPEANN_ENABLE_SPDK=0)
 endif()
 
 find_package(OpenMP)
 
 add_subdirectory(deps/spdlog)
 add_subdirectory(deps/argparse)
-if (QUIVER_BUILD_DISKANN_TOOLS)
+if (GPIPEANN_BUILD_DISKANN_TOOLS)
   add_subdirectory(deps/DiskANN)
 endif()
 if (TARGET build_memory_index)
