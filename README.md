@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="readme-img/gpipeann-wordmark.svg" alt="GPipeANN" width="55%">
+  <img src="readme-img/gpipeann-wordmark-monochrome.svg" alt="GPipeANN" width="55%">
 </p>
 
 <h3 align="center">
