@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
               << " unique=" << unique_count << " total=" << query_efs.size()
               << " max_ef=" << max_ef << std::endl;
   }
-#if !QUIVER_ENABLE_SPDK
+#if !GPIPEANN_ENABLE_SPDK
   if (!setup.ssd_lists.empty()) {
     return bin_common::fail_without_spdk_support();
   }

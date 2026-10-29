@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
 
 #include <cstdio>
 #include <algorithm>
@@ -11,7 +11,7 @@
 #include <vector>
 #include "io_control.cuh"
 
-namespace quiver {
+namespace gpipeann {
 
 inline double ns_to_us(int64_t ns) {
     return static_cast<double>(ns) / 1000.0;
@@ -24,7 +24,7 @@ inline double percentile(std::vector<double>& v, double pct) {
     return v[idx];
 }
 
-struct QuiverBlockTimelineBreak {
+struct GPipeANNBlockTimelineBreak {
     int block_id;
     int query_count;
     double total;
@@ -91,10 +91,10 @@ inline double merged_interval_us(std::vector<std::pair<int64_t, int64_t>>& inter
     return ns_to_us(active_ns);
 }
 
-inline std::vector<QuiverBlockTimelineBreak> collect_block_timeline_breaks(
-    const QuiverProbeQueryTrace* traces, int num_traces, int queries_per_block)
+inline std::vector<GPipeANNBlockTimelineBreak> collect_block_timeline_breaks(
+    const GPipeANNProbeQueryTrace* traces, int num_traces, int queries_per_block)
 {
-    std::vector<QuiverBlockTimelineBreak> out;
+    std::vector<GPipeANNBlockTimelineBreak> out;
     if (traces == nullptr || num_traces <= 0 || queries_per_block <= 0) {
         return out;
     }
@@ -140,7 +140,7 @@ inline std::vector<QuiverBlockTimelineBreak> collect_block_timeline_breaks(
         }
 
         if (query_count == 0 || block_end <= block_start) continue;
-        QuiverBlockTimelineBreak b{};
+        GPipeANNBlockTimelineBreak b{};
         b.block_id = block_id;
         b.query_count = query_count;
         b.total = ns_to_us(block_end - block_start);
@@ -159,12 +159,12 @@ inline std::vector<QuiverBlockTimelineBreak> collect_block_timeline_breaks(
 }
 
 inline void print_block_timeline_breakdown(
-    const QuiverProbeQueryTrace* traces, int num_traces, int queries_per_block)
+    const GPipeANNProbeQueryTrace* traces, int num_traces, int queries_per_block)
 {
-    std::vector<QuiverBlockTimelineBreak> timelines =
+    std::vector<GPipeANNBlockTimelineBreak> timelines =
         collect_block_timeline_breaks(traces, num_traces, queries_per_block);
     if (timelines.empty()) {
-        printf("\n=== Quiver Block Timeline Breakdown: no valid traces ===\n");
+        printf("\n=== GPipeANN Block Timeline Breakdown: no valid traces ===\n");
         return;
     }
 
@@ -184,7 +184,7 @@ inline void print_block_timeline_breakdown(
         idle_ratio_pct.push_back(b.idle_ratio_pct);
     }
 
-    printf("\n=== Quiver Block Timeline Breakdown (%zu blocks, Q=%d) ===\n",
+    printf("\n=== GPipeANN Block Timeline Breakdown (%zu blocks, Q=%d) ===\n",
            timelines.size(), queries_per_block);
     printf("  Definition: block idle = no query slot has active compute work\n");
     printf("  Active intervals from same block are merged before computing idle\n");
@@ -197,13 +197,13 @@ inline void print_block_timeline_breakdown(
     print_metric_summary("BlockNoCompute(us)", no_compute_idle);
     print_metric_summary("BlockActive(us)", active_compute);
     print_metric_summary("BlockIdleRatio(%)", idle_ratio_pct);
-    printf("=== End Quiver Block Timeline Breakdown ===\n\n");
+    printf("=== End GPipeANN Block Timeline Breakdown ===\n\n");
 }
 
-inline std::vector<QuiverBlockTimelineBreak> collect_native_block_timeline_breaks(
-    const QuiverProbeBlockTrace* traces, int num_traces)
+inline std::vector<GPipeANNBlockTimelineBreak> collect_native_block_timeline_breaks(
+    const GPipeANNProbeBlockTrace* traces, int num_traces)
 {
-    std::vector<QuiverBlockTimelineBreak> out;
+    std::vector<GPipeANNBlockTimelineBreak> out;
     if (traces == nullptr || num_traces <= 0) return out;
     out.reserve(num_traces);
 
@@ -212,7 +212,7 @@ inline std::vector<QuiverBlockTimelineBreak> collect_native_block_timeline_break
         if (tr.t_block_done <= tr.t_block_start || tr.query_count <= 0) {
             continue;
         }
-        QuiverBlockTimelineBreak b{};
+        GPipeANNBlockTimelineBreak b{};
         b.block_id = tr.block_id;
         b.query_count = tr.query_count;
         b.total = ns_to_us(tr.t_block_done - tr.t_block_start);
@@ -230,12 +230,12 @@ inline std::vector<QuiverBlockTimelineBreak> collect_native_block_timeline_break
 }
 
 inline void print_native_block_timeline_breakdown(
-    const QuiverProbeBlockTrace* traces, int num_traces, int queries_per_block)
+    const GPipeANNProbeBlockTrace* traces, int num_traces, int queries_per_block)
 {
-    std::vector<QuiverBlockTimelineBreak> timelines =
+    std::vector<GPipeANNBlockTimelineBreak> timelines =
         collect_native_block_timeline_breaks(traces, num_traces);
     if (timelines.empty()) {
-        printf("\n=== Quiver Native Block Timeline Breakdown: no valid traces ===\n");
+        printf("\n=== GPipeANN Native Block Timeline Breakdown: no valid traces ===\n");
         return;
     }
 
@@ -255,7 +255,7 @@ inline void print_native_block_timeline_breakdown(
         idle_ratio_pct.push_back(b.idle_ratio_pct);
     }
 
-    printf("\n=== Quiver Native Block Timeline Breakdown (%zu blocks, Q=%d) ===\n",
+    printf("\n=== GPipeANN Native Block Timeline Breakdown (%zu blocks, Q=%d) ===\n",
            timelines.size(), queries_per_block);
     printf("  Definition: block idle = scheduler found no ready slot/lane and spun waiting for IO\n");
     printf("  Metric                      count          avg          p50          p90          p99          max\n");
@@ -264,19 +264,19 @@ inline void print_native_block_timeline_breakdown(
     print_metric_summary("BlockNoReady(us)", no_compute_idle);
     print_metric_summary("BlockBusy(us)", active_compute);
     print_metric_summary("BlockIdleRatio(%)", idle_ratio_pct);
-    printf("=== End Quiver Native Block Timeline Breakdown ===\n\n");
+    printf("=== End GPipeANN Native Block Timeline Breakdown ===\n\n");
 }
 
-struct QuiverGlobalHopMetrics {
+struct GPipeANNGlobalHopMetrics {
     std::vector<double> schedule_gap;
     std::vector<double> inter_hop_wait;
     std::vector<double> compute;
     std::vector<double> lifecycle;
 };
 
-inline void collect_global_hop_metrics(const QuiverProbeQueryTrace* traces,
+inline void collect_global_hop_metrics(const GPipeANNProbeQueryTrace* traces,
                                        int num_traces,
-                                       QuiverGlobalHopMetrics& out)
+                                       GPipeANNGlobalHopMetrics& out)
 {
     size_t reserve_count = 0;
     for (int i = 0; i < num_traces; i++) {
@@ -322,22 +322,22 @@ inline void collect_global_hop_metrics(const QuiverProbeQueryTrace* traces,
 }
 
 inline void print_global_hop_probe_breakdown(
-    const QuiverProbeQueryTrace* traces, int num_traces)
+    const GPipeANNProbeQueryTrace* traces, int num_traces)
 {
-    QuiverGlobalHopMetrics metrics;
+    GPipeANNGlobalHopMetrics metrics;
     collect_global_hop_metrics(traces, num_traces, metrics);
     size_t total = metrics.compute.size();
     if (total == 0) {
-        printf("\n=== Quiver GPU Hop Probe: no valid samples ===\n");
+        printf("\n=== GPipeANN GPU Hop Probe: no valid samples ===\n");
         return;
     }
-    printf("\n=== Quiver GPU Per-Query Probe (%zu samples) ===\n", total);
+    printf("\n=== GPipeANN GPU Per-Query Probe (%zu samples) ===\n", total);
     printf("  ScheduleGap: IO ready found -> compute start in persistent kernel\n");
     printf("  InterHopWait: previous query compute done -> next compute start\n");
     printf("  Compute: compute start -> compute done\n");
     printf("  Lifecycle: previous query compute done -> current compute done\n\n");
 
-    printf("=== Quiver GPU Probe Global Metric Breakdown ===\n");
+    printf("=== GPipeANN GPU Probe Global Metric Breakdown ===\n");
     printf("  %-18s %10s %12s %12s %12s %12s %12s\n", "Metric", "count",
            "avg_us", "p50_us", "p90_us", "p99_us", "max_us");
     printf("  %-18s %10s %12s %12s %12s %12s %12s\n",
@@ -347,7 +347,7 @@ inline void print_global_hop_probe_breakdown(
     print_metric_summary("InterHopWait", metrics.inter_hop_wait);
     print_metric_summary("Compute", metrics.compute);
     print_metric_summary("Lifecycle", metrics.lifecycle);
-    printf("=== End Quiver GPU Probe Global Metric Breakdown ===\n\n");
+    printf("=== End GPipeANN GPU Probe Global Metric Breakdown ===\n\n");
 }
 
 inline void append_completed_io_latencies(
@@ -364,8 +364,8 @@ inline void append_completed_io_latencies(
     }
 }
 
-inline size_t quiver_cdf_point_limit() {
-    const char* env = std::getenv("QUIVER_PROBE_CDF_POINTS");
+inline size_t gpipeann_cdf_point_limit() {
+    const char* env = std::getenv("GPIPEANN_PROBE_CDF_POINTS");
     if (env == nullptr || env[0] == '\0') return 200;
     char* end = nullptr;
     unsigned long value = std::strtoul(env, &end, 10);
@@ -395,14 +395,14 @@ inline void write_probe_cdf_csv(const char* path,
     if (path == nullptr || path[0] == '\0') return;
     std::ofstream out(path);
     if (!out) {
-        std::fprintf(stderr, "Failed to open Quiver probe CDF CSV: %s\n", path);
+        std::fprintf(stderr, "Failed to open GPipeANN probe CDF CSV: %s\n", path);
         return;
     }
-    const size_t max_points = quiver_cdf_point_limit();
+    const size_t max_points = gpipeann_cdf_point_limit();
     std::vector<double> values = end_to_end_io_us;
     out << "metric,value_us,cdf,total_count\n";
     write_cdf_points(out, "EndToEndIO", values, max_points);
-    std::printf("Quiver preprocessed CDF points written to %s "
+    std::printf("GPipeANN preprocessed CDF points written to %s "
                 "(max_points_per_metric=%zu)\n", path, max_points);
 }
 
@@ -410,12 +410,12 @@ inline void print_end_to_end_io_breakdown(
     const std::vector<double>& end_to_end_io_us)
 {
     if (end_to_end_io_us.empty()) {
-        printf("\n=== Quiver IO Latency: no samples ===\n");
+        printf("\n=== GPipeANN IO Latency: no samples ===\n");
         return;
     }
 
     std::vector<double> values = end_to_end_io_us;
-    printf("\n=== Quiver IO Latency (%zu IO samples) ===\n",
+    printf("\n=== GPipeANN IO Latency (%zu IO samples) ===\n",
            values.size());
     printf("  EndToEndIO: CPU submit_direct -> SPDK callback complete\n");
     printf("  %-18s %10s %12s %12s %12s %12s %12s\n", "Metric", "count",
@@ -424,11 +424,11 @@ inline void print_end_to_end_io_breakdown(
            "------------------", "----------", "------------",
            "------------", "------------", "------------", "------------");
     print_metric_summary("EndToEndIO", values);
-    printf("=== End Quiver IO Latency ===\n\n");
+    printf("=== End GPipeANN IO Latency ===\n\n");
 }
 
 inline void print_query_latency_breakdown(
-    const QuiverProbeQueryTrace* traces, int count)
+    const GPipeANNProbeQueryTrace* traces, int count)
 {
     std::vector<double> pq_init, boot_wait, finalize, total;
     for (int i = 0; i < count; ++i) {
@@ -442,13 +442,13 @@ inline void print_query_latency_breakdown(
         append(finalize, t.t_pipe_done, t.t_query_done);
         append(total, t.t_query_start, t.t_query_done);
     }
-    printf("\n=== Quiver sampled query phases (us; overlapping queries, not additive wall time) ===\n");
+    printf("\n=== GPipeANN sampled query phases (us; overlapping queries, not additive wall time) ===\n");
     print_metric_summary("PQInit", pq_init);
     print_metric_summary("BootIOWait", boot_wait);
     print_metric_summary("Finalize", finalize);
     print_metric_summary("QueryTotal", total);
 }
 
-} // namespace quiver
+} // namespace gpipeann
 
-#endif // QUIVER_LATENCY_PROBE
+#endif // GPIPEANN_LATENCY_PROBE

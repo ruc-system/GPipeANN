@@ -1,13 +1,13 @@
 # ================================================================
 # Shared SPDK wrapper (external dependency, all systems share)
 # ================================================================
-if (QUIVER_ENABLE_SPDK)
+if (GPIPEANN_ENABLE_SPDK)
   add_subdirectory(shared/io/spdk)
 endif()
 
 function(enable_light_breakdown_if_requested target_name)
-  if (QUIVER_ENABLE_LIGHT_BREAKDOWN)
-    target_compile_definitions(${target_name} PUBLIC QUIVER_LIGHT_BREAKDOWN=1)
+  if (GPIPEANN_ENABLE_LIGHT_BREAKDOWN)
+    target_compile_definitions(${target_name} PUBLIC GPIPEANN_LIGHT_BREAKDOWN=1)
   endif()
 endfunction()
 
@@ -16,7 +16,7 @@ endfunction()
 # ================================================================
 set(flashanns_io_sources
   flashanns/shared/io/mem_loader.cpp)
-if (QUIVER_ENABLE_SPDK)
+if (GPIPEANN_ENABLE_SPDK)
   list(APPEND flashanns_io_sources flashanns/shared/io/spdk/spdk_io.cpp)
 endif()
 
@@ -33,7 +33,7 @@ target_include_directories(flashanns_lib
 
 target_link_libraries(flashanns_lib
   PUBLIC spdlog)
-if (QUIVER_ENABLE_SPDK)
+if (GPIPEANN_ENABLE_SPDK)
   target_link_libraries(flashanns_lib PUBLIC shared_spdk_wrapper)
 endif()
 
@@ -56,7 +56,7 @@ target_include_directories(flashanns_probe_lib
 
 target_link_libraries(flashanns_probe_lib
   PUBLIC spdlog)
-if (QUIVER_ENABLE_SPDK)
+if (GPIPEANN_ENABLE_SPDK)
   target_link_libraries(flashanns_probe_lib PUBLIC shared_spdk_wrapper)
 endif()
 
@@ -79,7 +79,7 @@ target_include_directories(flashanns_pw2_lib
   PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/flashanns)
 target_link_libraries(flashanns_pw2_lib
   PUBLIC spdlog)
-if (QUIVER_ENABLE_SPDK)
+if (GPIPEANN_ENABLE_SPDK)
   target_link_libraries(flashanns_pw2_lib PUBLIC shared_spdk_wrapper)
 endif()
 target_compile_options(flashanns_pw2_lib
@@ -100,7 +100,7 @@ target_include_directories(flashanns_probe_pw2_lib
   PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/flashanns)
 target_link_libraries(flashanns_probe_pw2_lib
   PUBLIC spdlog)
-if (QUIVER_ENABLE_SPDK)
+if (GPIPEANN_ENABLE_SPDK)
   target_link_libraries(flashanns_probe_pw2_lib PUBLIC shared_spdk_wrapper)
 endif()
 target_compile_options(flashanns_probe_pw2_lib
@@ -122,7 +122,7 @@ function(add_fixed_flashanns_lib target_name fixed_pipe_width)
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/flashanns)
   target_link_libraries(${target_name}
     PUBLIC spdlog)
-  if (QUIVER_ENABLE_SPDK)
+  if (GPIPEANN_ENABLE_SPDK)
     target_link_libraries(${target_name} PUBLIC shared_spdk_wrapper)
   endif()
   target_compile_options(${target_name}
@@ -149,7 +149,7 @@ function(add_fixed_flashanns_probe_lib target_name fixed_pipe_width)
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/flashanns)
   target_link_libraries(${target_name}
     PUBLIC spdlog)
-  if (QUIVER_ENABLE_SPDK)
+  if (GPIPEANN_ENABLE_SPDK)
     target_link_libraries(${target_name} PUBLIC shared_spdk_wrapper)
   endif()
   target_compile_options(${target_name}
@@ -169,7 +169,7 @@ add_fixed_flashanns_probe_lib(flashanns_probe_pw4_lib 4)
 # ================================================================
 set(gustann_io_sources
   gustann/shared/io/mem_loader.cpp)
-if (QUIVER_ENABLE_SPDK)
+if (GPIPEANN_ENABLE_SPDK)
   list(APPEND gustann_io_sources gustann/shared/io/spdk/spdk_io.cpp)
 endif()
 
@@ -187,7 +187,7 @@ target_include_directories(gustann_lib
 
 target_link_libraries(gustann_lib
   PUBLIC spdlog)
-if (QUIVER_ENABLE_SPDK)
+if (GPIPEANN_ENABLE_SPDK)
   target_link_libraries(gustann_lib PUBLIC shared_spdk_wrapper)
 endif()
 
@@ -211,7 +211,7 @@ target_include_directories(gustann_pw1_lib
 
 target_link_libraries(gustann_pw1_lib
   PUBLIC spdlog)
-if (QUIVER_ENABLE_SPDK)
+if (GPIPEANN_ENABLE_SPDK)
   target_link_libraries(gustann_pw1_lib PUBLIC shared_spdk_wrapper)
 endif()
 
@@ -237,7 +237,7 @@ target_include_directories(gustann_probe_pw1_lib
 
 target_link_libraries(gustann_probe_pw1_lib
   PUBLIC spdlog)
-if (QUIVER_ENABLE_SPDK)
+if (GPIPEANN_ENABLE_SPDK)
   target_link_libraries(gustann_probe_pw1_lib PUBLIC shared_spdk_wrapper)
 endif()
 
@@ -250,7 +250,7 @@ target_compile_definitions(gustann_probe_pw1_lib
   PUBLIC GUSTANN_LATENCY_PROBE GUSTANN_FIXED_PIPE_WIDTH=1)
 
 # ================================================================
-# Quiver — uses shared/ directly (actively developed)
+# GPipeANN — uses shared/ directly (actively developed)
 # ================================================================
 add_library(shared_common_lib
   shared/common/shared_common_stub.cu)
@@ -278,7 +278,7 @@ target_compile_options(shared_index_lib
 
 set(shared_io_sources
   shared/io/mem_loader.cpp)
-if (QUIVER_ENABLE_SPDK)
+if (GPIPEANN_ENABLE_SPDK)
   list(APPEND shared_io_sources shared/io/spdk/spdk_io.cpp)
 endif()
 
@@ -290,7 +290,7 @@ target_include_directories(shared_io_lib
 
 target_link_libraries(shared_io_lib
   PUBLIC shared_common_lib)
-if (QUIVER_ENABLE_SPDK)
+if (GPIPEANN_ENABLE_SPDK)
   target_link_libraries(shared_io_lib PUBLIC shared_spdk_wrapper)
 endif()
 
@@ -351,63 +351,63 @@ target_include_directories(flashanns_probe_report_test
 target_compile_options(flashanns_probe_report_test
   PRIVATE "-O2" "-g")
 
-add_executable(quiver_pq_lut_test quiver/pq_lut_test.cu)
-target_compile_options(quiver_pq_lut_test PRIVATE "-O2" "-lineinfo")
+add_executable(gpipeann_pq_lut_test gpipeann/pq_lut_test.cu)
+target_compile_options(gpipeann_pq_lut_test PRIVATE "-O2" "-lineinfo")
 
-add_executable(quiver_probe_report_test
-  quiver/probe_report_test.cpp)
-set_source_files_properties(quiver/probe_report_test.cpp PROPERTIES
+add_executable(gpipeann_probe_report_test
+  gpipeann/probe_report_test.cpp)
+set_source_files_properties(gpipeann/probe_report_test.cpp PROPERTIES
   LANGUAGE CUDA)
-target_include_directories(quiver_probe_report_test
-  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/quiver)
-target_compile_options(quiver_probe_report_test
+target_include_directories(gpipeann_probe_report_test
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/gpipeann)
+target_compile_options(gpipeann_probe_report_test
   PRIVATE "-O2" "-g")
 
-set(quiver_lib_sources quiver/search.cu)
+set(gpipeann_lib_sources gpipeann/search.cu)
 
 # Strawman host launchers (compile-time gated).
-# Only built when -DQUIVER_BUILD_STRAWMEN=ON; production builds stay lean.
-if (QUIVER_BUILD_STRAWMEN)
-  list(APPEND quiver_lib_sources quiver/search_strawmen.cu)
+# Only built when -DGPIPEANN_BUILD_STRAWMEN=ON; production builds stay lean.
+if (GPIPEANN_BUILD_STRAWMEN)
+  list(APPEND gpipeann_lib_sources gpipeann/search_strawmen.cu)
 endif()
 
-add_library(quiver_lib ${quiver_lib_sources})
+add_library(gpipeann_lib ${gpipeann_lib_sources})
 
-target_include_directories(quiver_lib
+target_include_directories(gpipeann_lib
   PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(quiver_lib
+target_link_libraries(gpipeann_lib
   PUBLIC shared_common_lib shared_index_lib shared_io_lib)
 
-target_compile_options(quiver_lib
+target_compile_options(gpipeann_lib
   PRIVATE "-lineinfo"
   PUBLIC "-O2" "-g"
 )
-enable_light_breakdown_if_requested(quiver_lib)
+enable_light_breakdown_if_requested(gpipeann_lib)
 
-add_library(quiver_probe_lib ${quiver_lib_sources})
+add_library(gpipeann_probe_lib ${gpipeann_lib_sources})
 
-target_include_directories(quiver_probe_lib
+target_include_directories(gpipeann_probe_lib
   PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(quiver_probe_lib
+target_link_libraries(gpipeann_probe_lib
   PUBLIC shared_common_lib shared_index_lib shared_io_lib)
 
-target_compile_options(quiver_probe_lib
+target_compile_options(gpipeann_probe_lib
   PRIVATE "-lineinfo"
   PUBLIC "-O2" "-g"
 )
 
-target_compile_definitions(quiver_probe_lib
-  PUBLIC QUIVER_LATENCY_PROBE)
+target_compile_definitions(gpipeann_probe_lib
+  PUBLIC GPIPEANN_LATENCY_PROBE)
 
-if (QUIVER_BUILD_STRAWMEN)
-  target_compile_definitions(quiver_lib PUBLIC QUIVER_BUILD_STRAWMEN)
-  target_compile_definitions(quiver_probe_lib PUBLIC QUIVER_BUILD_STRAWMEN)
+if (GPIPEANN_BUILD_STRAWMEN)
+  target_compile_definitions(gpipeann_lib PUBLIC GPIPEANN_BUILD_STRAWMEN)
+  target_compile_definitions(gpipeann_probe_lib PUBLIC GPIPEANN_BUILD_STRAWMEN)
 endif()
 
-function(add_fixed_quiver_lib target_name fixed_pipe_width fixed_queries_per_block)
-  add_library(${target_name} ${quiver_lib_sources})
+function(add_fixed_gpipeann_lib target_name fixed_pipe_width fixed_queries_per_block)
+  add_library(${target_name} ${gpipeann_lib_sources})
   target_include_directories(${target_name}
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
   target_link_libraries(${target_name}
@@ -418,25 +418,25 @@ function(add_fixed_quiver_lib target_name fixed_pipe_width fixed_queries_per_blo
   )
   target_compile_definitions(${target_name}
     PUBLIC
-      QUIVER_FIXED_PIPE_WIDTH=${fixed_pipe_width}
-      QUIVER_FIXED_QUERIES_PER_BLOCK=${fixed_queries_per_block})
-  if (QUIVER_BUILD_STRAWMEN)
-    target_compile_definitions(${target_name} PUBLIC QUIVER_BUILD_STRAWMEN)
+      GPIPEANN_FIXED_PIPE_WIDTH=${fixed_pipe_width}
+      GPIPEANN_FIXED_QUERIES_PER_BLOCK=${fixed_queries_per_block})
+  if (GPIPEANN_BUILD_STRAWMEN)
+    target_compile_definitions(${target_name} PUBLIC GPIPEANN_BUILD_STRAWMEN)
   endif()
 endfunction()
 
-add_fixed_quiver_lib(quiver_lib_pw1_q1 1 1)
-add_fixed_quiver_lib(quiver_lib_pw1_q2 1 2)
-add_fixed_quiver_lib(quiver_lib_pw1_q4 1 4)
-add_fixed_quiver_lib(quiver_lib_pw1_q8 1 8)
-add_fixed_quiver_lib(quiver_lib_pw2_q1 2 1)
-add_fixed_quiver_lib(quiver_lib_pw2_q2 2 2)
-add_fixed_quiver_lib(quiver_lib_pw2_q3 2 3)
-add_fixed_quiver_lib(quiver_lib_pw2_q4 2 4)
-add_fixed_quiver_lib(quiver_lib_pw4_q1 4 1)
+add_fixed_gpipeann_lib(gpipeann_lib_pw1_q1 1 1)
+add_fixed_gpipeann_lib(gpipeann_lib_pw1_q2 1 2)
+add_fixed_gpipeann_lib(gpipeann_lib_pw1_q4 1 4)
+add_fixed_gpipeann_lib(gpipeann_lib_pw1_q8 1 8)
+add_fixed_gpipeann_lib(gpipeann_lib_pw2_q1 2 1)
+add_fixed_gpipeann_lib(gpipeann_lib_pw2_q2 2 2)
+add_fixed_gpipeann_lib(gpipeann_lib_pw2_q3 2 3)
+add_fixed_gpipeann_lib(gpipeann_lib_pw2_q4 2 4)
+add_fixed_gpipeann_lib(gpipeann_lib_pw4_q1 4 1)
 
-function(add_fixed_quiver_probe_lib target_name fixed_pipe_width fixed_queries_per_block)
-  add_library(${target_name} ${quiver_lib_sources})
+function(add_fixed_gpipeann_probe_lib target_name fixed_pipe_width fixed_queries_per_block)
+  add_library(${target_name} ${gpipeann_lib_sources})
   target_include_directories(${target_name}
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
   target_link_libraries(${target_name}
@@ -447,20 +447,20 @@ function(add_fixed_quiver_probe_lib target_name fixed_pipe_width fixed_queries_p
   )
   target_compile_definitions(${target_name}
     PUBLIC
-      QUIVER_LATENCY_PROBE
-      QUIVER_FIXED_PIPE_WIDTH=${fixed_pipe_width}
-      QUIVER_FIXED_QUERIES_PER_BLOCK=${fixed_queries_per_block})
-  if (QUIVER_BUILD_STRAWMEN)
-    target_compile_definitions(${target_name} PUBLIC QUIVER_BUILD_STRAWMEN)
+      GPIPEANN_LATENCY_PROBE
+      GPIPEANN_FIXED_PIPE_WIDTH=${fixed_pipe_width}
+      GPIPEANN_FIXED_QUERIES_PER_BLOCK=${fixed_queries_per_block})
+  if (GPIPEANN_BUILD_STRAWMEN)
+    target_compile_definitions(${target_name} PUBLIC GPIPEANN_BUILD_STRAWMEN)
   endif()
 endfunction()
 
-add_fixed_quiver_probe_lib(quiver_probe_lib_pw1_q1 1 1)
-add_fixed_quiver_probe_lib(quiver_probe_lib_pw1_q2 1 2)
-add_fixed_quiver_probe_lib(quiver_probe_lib_pw1_q4 1 4)
-add_fixed_quiver_probe_lib(quiver_probe_lib_pw1_q8 1 8)
-add_fixed_quiver_probe_lib(quiver_probe_lib_pw2_q1 2 1)
-add_fixed_quiver_probe_lib(quiver_probe_lib_pw2_q2 2 2)
-add_fixed_quiver_probe_lib(quiver_probe_lib_pw2_q3 2 3)
-add_fixed_quiver_probe_lib(quiver_probe_lib_pw2_q4 2 4)
-add_fixed_quiver_probe_lib(quiver_probe_lib_pw4_q1 4 1)
+add_fixed_gpipeann_probe_lib(gpipeann_probe_lib_pw1_q1 1 1)
+add_fixed_gpipeann_probe_lib(gpipeann_probe_lib_pw1_q2 1 2)
+add_fixed_gpipeann_probe_lib(gpipeann_probe_lib_pw1_q4 1 4)
+add_fixed_gpipeann_probe_lib(gpipeann_probe_lib_pw1_q8 1 8)
+add_fixed_gpipeann_probe_lib(gpipeann_probe_lib_pw2_q1 2 1)
+add_fixed_gpipeann_probe_lib(gpipeann_probe_lib_pw2_q2 2 2)
+add_fixed_gpipeann_probe_lib(gpipeann_probe_lib_pw2_q3 2 3)
+add_fixed_gpipeann_probe_lib(gpipeann_probe_lib_pw2_q4 2 4)
+add_fixed_gpipeann_probe_lib(gpipeann_probe_lib_pw4_q1 4 1)

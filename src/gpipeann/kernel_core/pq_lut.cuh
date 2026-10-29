@@ -2,7 +2,7 @@
 
 #include "../../shared/index/pq_device.cuh"
 
-namespace quiver {
+namespace gpipeann {
 
 // All CTA threads must participate. The caller provides the LUT for its slot;
 // unlike PQSearchData::init_query, no blockIdx-based addressing is assumed.
@@ -52,4 +52,4 @@ __device__ __forceinline__ void init_slot_pq_lut(
         qdata[i] += pqd->centroid[i];
 }
 
-} // namespace quiver
+} // namespace gpipeann

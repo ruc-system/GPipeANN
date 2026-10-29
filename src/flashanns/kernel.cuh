@@ -292,7 +292,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
     uint8_t*   my_buf   = args.comm->buffers
                         + (long)bid * W * args.io_bytes;
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     __shared__ int32_t s_breakdown_cta_window_active;
     __shared__ int64_t s_breakdown_cta_window_start_ns;
     __shared__ int64_t s_breakdown_cta_window_deadline_ns;
@@ -421,7 +421,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
         query_ef = s_query_ef;
     }
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     const int global_qid = args.batch_query_offset + qid;
     const int breakdown_sample_idx = shared::breakdown::sample_index(
         global_qid, args.total_search_queries, args.breakdown_sample_count);
@@ -498,7 +498,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                       ? args.d_entry_nodes[qid]
                       : args.enter_point;
         if (tid == 0) {
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
             if (do_tech) s_breakdown_lane_issue_ts[0] = globaltimer_ns();
 #endif
             issue_request(&my_ctl[0], entry);
@@ -511,11 +511,11 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                 s_ready_w = (*(volatile int32_t*)&my_ctl[0].status == IO_READY) ? 0 : -1;
             __syncthreads();
             if (s_ready_w == 0) break;
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
             breakdown_cta_start_wait();
 #endif
         }
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         breakdown_cta_end_wait(globaltimer_ns());
 #endif
         __threadfence_system();
@@ -523,7 +523,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
 #ifdef FLASHANNS_LATENCY_PROBE
         if (tid == 0) probe_t_boot_io_done = globaltimer_ns();
 #endif
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         int64_t breakdown_t_boot_ready = 0;
         int64_t breakdown_t_boot_compute_start = 0;
         if (tid == 0 && do_tech) {
@@ -539,7 +539,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
 
         if (tid == 0) my_ctl[0].status = IO_IDLE;
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         if (tid == 0 && do_tech) {
             breakdown_t_boot_compute_start = globaltimer_ns();
             if (breakdown_t_boot_compute_start > breakdown_t_boot_ready) {
@@ -578,7 +578,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
         }
         __syncthreads();
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         if (tid == 0 && do_tech) {
             flash_breakdown_add_compute_interval(
                 breakdown_trace, breakdown_t_boot_compute_start,
@@ -600,7 +600,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
         if (tid == 0) {
             for (int w = 0; w < W; w++) {
                 if (lane_req[w] != -1) {
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
                     if (do_tech)
                         s_breakdown_lane_issue_ts[w] = globaltimer_ns();
 #endif
@@ -626,7 +626,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
 #endif
         // ---- PIPE LOOP: process all ready lanes per iteration ----
         while (true) {
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
             breakdown_cta_tick_window();
 #endif
             if (tid < W) {
@@ -649,7 +649,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
 
             if (s_ready_w == -2) break;
             if (s_ready_w == -1) {
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
                 breakdown_cta_start_wait();
 #endif
 #ifdef FLASHANNS_LATENCY_PROBE
@@ -657,7 +657,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
 #endif
                 continue;
             }
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
             breakdown_cta_end_wait(globaltimer_ns());
 #endif
 
@@ -673,7 +673,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                 }
             }
 #endif
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
             int64_t breakdown_t_ready_found = 0;
             if (tid == 0 && do_tech) {
                 breakdown_t_ready_found = globaltimer_ns();
@@ -691,7 +691,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
 
             __threadfence_system();
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
             int64_t breakdown_t_compute_start = 0;
             if (tid == 0 && do_tech) {
                 breakdown_t_compute_start = globaltimer_ns();
@@ -706,7 +706,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                 if (snap_st[w] != IO_READY) continue;
 
                 if (tid == 0) my_ctl[w].status = IO_IDLE;
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
                 int64_t breakdown_t_lane_compute_start = 0;
                 if (tid == 0 && do_tech)
                     breakdown_t_lane_compute_start = globaltimer_ns();
@@ -744,7 +744,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                         my_nid, my_ndist, my_ctx);
                 __syncthreads();
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
                 if (tid == 0 && do_tech) {
                     flash_breakdown_add_compute_interval(
                         breakdown_trace, breakdown_t_lane_compute_start,
@@ -764,7 +764,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
             if (tid == 0) {
                 for (int w = 0; w < W; w++) {
                     if (snap_st[w] == IO_READY && lane_req[w] != -1) {
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
                         if (do_tech)
                             s_breakdown_lane_issue_ts[w] = globaltimer_ns();
 #endif
@@ -790,7 +790,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                     if (snap_st[w] != IO_READY &&
                         my_ctl[w].status == IO_IDLE &&
                         lane_req[w] != -1) {
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
                         if (do_tech)
                             s_breakdown_lane_issue_ts[w] = globaltimer_ns();
 #endif
@@ -823,7 +823,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
 #ifdef FLASHANNS_LATENCY_PROBE
         int64_t probe_t_pipe_done = globaltimer_ns();
 #endif
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         breakdown_cta_finish_window(globaltimer_ns());
 #endif
 
@@ -838,7 +838,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
         }
         __syncthreads();
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         if (tid == 0 && do_tech) {
             breakdown_trace->query_done_ns = globaltimer_ns();
         }

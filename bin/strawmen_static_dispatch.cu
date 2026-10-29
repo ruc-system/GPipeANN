@@ -1,11 +1,11 @@
 // Ablation binary: StaticDispatch with configurable queries per block.
 //
-// This binary runs Quiver's static batch scheduler:
+// This binary runs GPipeANN's static batch scheduler:
 //   - Q=1: one query per block, FlashANNS-style batch lockstep.
-//   - Q>1: each batch pre-admits a fixed query range to Quiver's Q-interleave
+//   - Q>1: each batch pre-admits a fixed query range to GPipeANN's Q-interleave
 //     streaming kernel, preserving the static batch boundary.
 //
-// Unlike quiver_search, host admission happens once per static batch. The host
+// Unlike gpipeann_search, host admission happens once per static batch. The host
 // launches ceil(N / (num_blocks * Q)) batches and synchronizes between batches.
 
 #include "spdlog/spdlog.h"
@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-#include "../src/quiver/search.cuh"
+#include "../src/gpipeann/search.cuh"
 #include "shared/common/log_config.hpp"
 
 #include "common/cli_shared.hpp"
@@ -75,12 +75,12 @@ int main(int argc, char** argv) {
       .default_value(648)
       .store_into(num_blocks);
   program.add_argument("--poll-threads").store_into(poll_threads);
-#ifndef QUIVER_FIXED_PIPE_WIDTH
+#ifndef GPIPEANN_FIXED_PIPE_WIDTH
   program.add_argument("--pipe-width")
       .default_value(1)
       .store_into(pipe_width);
 #endif
-#ifndef QUIVER_FIXED_QUERIES_PER_BLOCK
+#ifndef GPIPEANN_FIXED_QUERIES_PER_BLOCK
   program.add_argument("--queries-per-block")
       .default_value(1)
       .store_into(queries_per_block);
@@ -95,12 +95,12 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-#ifdef QUIVER_FIXED_PIPE_WIDTH
-  pipe_width = bin_common::resolve_fixed_value(pipe_width, QUIVER_FIXED_PIPE_WIDTH);
+#ifdef GPIPEANN_FIXED_PIPE_WIDTH
+  pipe_width = bin_common::resolve_fixed_value(pipe_width, GPIPEANN_FIXED_PIPE_WIDTH);
 #endif
-#ifdef QUIVER_FIXED_QUERIES_PER_BLOCK
+#ifdef GPIPEANN_FIXED_QUERIES_PER_BLOCK
   queries_per_block = bin_common::resolve_fixed_value(
-      queries_per_block, QUIVER_FIXED_QUERIES_PER_BLOCK);
+      queries_per_block, GPIPEANN_FIXED_QUERIES_PER_BLOCK);
 #endif
 
   if (!bin_common::validate_positive_arg(num_blocks, "--num-blocks") ||
@@ -145,7 +145,7 @@ int main(int argc, char** argv) {
       return 1;
     }
 
-    quiver::run_static_batch_search(
+    gpipeann::run_static_batch_search(
         setup.layout, setup.data_type, pipe_width, poll_threads, run_nb,
         loader, setup.pq.get(), setup.nav.get(),
         static_cast<int>(setup.layout.enter_point), starter.get(),

@@ -31,7 +31,7 @@ inline int fail_without_spdk_support() {
 }
 
 inline int fail_if_spdk_requested_without_support(const SharedCliArgs& args) {
-#if !QUIVER_ENABLE_SPDK
+#if !GPIPEANN_ENABLE_SPDK
   if (!args.ssd_list_file.empty() && !read_ssd_list(args.ssd_list_file).empty()) {
     return fail_without_spdk_support();
   }
@@ -196,7 +196,7 @@ inline void write_per_query_recall_csv(const SharedCliArgs& args,
     out << i << "," << gt_query << "," << recall.hits << ","
         << std::fixed << std::setprecision(6) << recall.recall << "\n";
   }
-  std::cout << "[Quiver] Per-query recall CSV: " << csv_path << std::endl;
+  std::cout << "[GPipeANN] Per-query recall CSV: " << csv_path << std::endl;
 }
 
 inline void write_search_results(const SharedCliArgs& args,
@@ -212,7 +212,7 @@ inline void write_search_results(const SharedCliArgs& args,
                   static_cast<size_t>(args.topk));
   write_typed_bin(distances_path, setup.distances.get(), setup.queries.count,
                   static_cast<size_t>(args.topk));
-  std::cout << "[Quiver] Search results: " << ids_path << " "
+  std::cout << "[GPipeANN] Search results: " << ids_path << " "
             << distances_path << std::endl;
 }
 

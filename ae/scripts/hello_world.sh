@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Hello-world smoke test: one Quiver search on SIFT, one occupancy point.
+# Hello-world smoke test: one GPipeANN search on SIFT, one occupancy point.
 #   ./ae/scripts/hello_world.sh
 # Runs in ~1 minute and prints Recall@10 and QPS. It does not reproduce any
 # paper figure; it only proves the machine, SPDK bindings and index are usable.
@@ -12,16 +12,16 @@ NUM_BLOCKS_LIST=108
 # SPDK/EAL cold start can exceed the global 22-second first-point watchdog.
 HANG_FLOOR_FIRST="${HANG_FLOOR_FIRST:-60}"
 
-require_bin quiver_search
+require_bin gpipeann_search
 ae_lock >/dev/null
 use_dataset sift1m
 HELLO_WORLD_EF="${HELLO_WORLD_EF:-19}"
 OUT="$(prepare_out hello_world)"
 cd "${ROOT}"
 
-LOG="${OUT}/quiver_${DATASET}_ef${HELLO_WORLD_EF}.log"
+LOG="${OUT}/gpipeann_${DATASET}_ef${HELLO_WORLD_EF}.log"
 run_search "${LOG}" \
-  "${BIN_DIR}/bin/quiver_search" \
+  "${BIN_DIR}/bin/gpipeann_search" \
   --index-dir "${INDEX_DIR}" \
   --query "${QUERY}" \
   --ground-truth "${GT}" \
@@ -29,7 +29,7 @@ run_search "${LOG}" \
   --topk "${TOPK}" \
   --ef-search "${HELLO_WORLD_EF}" \
   --repeat "${REPEAT}" \
-  --pipe-width "${PIPE_WIDTH_QUIVER}" \
+  --pipe-width "${PIPE_WIDTH_GPIPEANN}" \
   --queries-per-block "${QUERIES_PER_BLOCK}" \
   --poll-threads "${POLL_THREADS}" \
   --early-exit-policy none \

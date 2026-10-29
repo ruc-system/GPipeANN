@@ -1,6 +1,6 @@
-// Ablation binary: Q=1 Quiver early-exit strawmen.
+// Ablation binary: Q=1 GPipeANN early-exit strawmen.
 //
-// This intentionally keeps early-exit knobs out of quiver_search.  The binary
+// This intentionally keeps early-exit knobs out of gpipeann_search.  The binary
 // runs fixed policies for each num_blocks setting:
 //   1. none              : baseline natural termination
 //   2. darth_cpu_online  : direct DARTH-style CPU predictor communication
@@ -8,8 +8,8 @@
 //   4. darth_trace       : full-search trace collection for DARTH training
 //
 // The constants below are placeholders for paper strawmen.  They are not user
-// tuning knobs; future Quiver-specific policy work should replace the kernel
-// policy itself rather than adding more CLI surface to quiver_search.
+// tuning knobs; future GPipeANN-specific policy work should replace the kernel
+// policy itself rather than adding more CLI surface to gpipeann_search.
 
 #include "spdlog/spdlog.h"
 #include <argparse/argparse.hpp>
@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-#include "../src/quiver/search.cuh"
+#include "../src/gpipeann/search.cuh"
 #include "shared/common/log_config.hpp"
 
 #include "common/cli_shared.hpp"
@@ -37,7 +37,7 @@ constexpr int kGPruningPatience = 8;
 
 struct PolicyRun {
   const char* name;
-  quiver::EarlyExitOptions options;
+  gpipeann::EarlyExitOptions options;
 };
 
 std::vector<int> parse_int_list_arg(const std::string& raw,
@@ -69,20 +69,20 @@ std::vector<int> parse_int_list_arg(const std::string& raw,
 }
 
 std::vector<PolicyRun> all_policy_runs() {
-  quiver::EarlyExitOptions none;
+  gpipeann::EarlyExitOptions none;
 
-  quiver::EarlyExitOptions darth;
-  darth.policy = quiver::EarlyExitPolicy::kDarth;
+  gpipeann::EarlyExitOptions darth;
+  darth.policy = gpipeann::EarlyExitPolicy::kDarth;
   darth.darth_interval = kDarthInterval;
   darth.darth_threshold = kDarthThreshold;
 
-  quiver::EarlyExitOptions gpruning;
-  gpruning.policy = quiver::EarlyExitPolicy::kGPruning;
+  gpipeann::EarlyExitOptions gpruning;
+  gpruning.policy = gpipeann::EarlyExitPolicy::kGPruning;
   gpruning.gpruning_warmup_steps = kGPruningWarmupSteps;
   gpruning.gpruning_patience = kGPruningPatience;
 
-  quiver::EarlyExitOptions trace;
-  trace.policy = quiver::EarlyExitPolicy::kDarthTrace;
+  gpipeann::EarlyExitOptions trace;
+  trace.policy = gpipeann::EarlyExitPolicy::kDarthTrace;
   trace.darth_interval = kDarthInterval;
   trace.darth_threshold = kDarthThreshold;
 
@@ -181,10 +181,10 @@ int main(int argc, char** argv) {
         return 1;
       }
 
-      quiver::EarlyExitOptions options = policy.options;
+      gpipeann::EarlyExitOptions options = policy.options;
       std::string darth_trace_csv;
-      if (options.policy == quiver::EarlyExitPolicy::kDarth ||
-          options.policy == quiver::EarlyExitPolicy::kDarthTrace) {
+      if (options.policy == gpipeann::EarlyExitPolicy::kDarth ||
+          options.policy == gpipeann::EarlyExitPolicy::kDarthTrace) {
         options.darth_ground_truth = gt.values.get();
         options.darth_ground_truth_width = static_cast<int>(gt.width);
         options.darth_ground_truth_count = static_cast<int>(gt.count);
@@ -192,7 +192,7 @@ int main(int argc, char** argv) {
         options.darth_trace_csv_path = darth_trace_csv.c_str();
       }
 
-      quiver::run_static_batch_search(
+      gpipeann::run_static_batch_search(
           setup.layout, setup.data_type, kPipeWidth, poll_threads, run_nb,
           loader, setup.pq.get(), setup.nav.get(),
           static_cast<int>(setup.layout.enter_point), starter.get(),

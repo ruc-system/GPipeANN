@@ -17,14 +17,14 @@ apply_paper_knobs
 
 require_bin flashanns_search
 require_bin gustann_search
-require_bin quiver_search
+require_bin gpipeann_search
 ae_lock
 OUT="$(prepare_out e2e)"
 cd "${ROOT}"
 
 E2E_DATASETS="${E2E_DATASETS:-sift deep}"
 E2E_RECALLS="${E2E_RECALLS:-90 96}"
-E2E_SYSTEMS="${E2E_SYSTEMS:-flashanns gustann quiver}"
+E2E_SYSTEMS="${E2E_SYSTEMS:-flashanns gustann gpipeann}"
 
 has_word() {
   local wanted="$1" word
@@ -55,10 +55,10 @@ run_gust() {
     --ssd-list-file "${SSD_LIST}" --mini-batch-list "${MINI_BATCH_LIST}"
 }
 
-run_quiver() {
+run_gpipeann() {
   local ef="$1" q="$2" nbs="$3"
-  run_search "${OUT}/quiver_${DATASET}_ef${ef}_q${q}_pw2.log" \
-    "${BIN_DIR}/bin/quiver_search" \
+  run_search "${OUT}/gpipeann_${DATASET}_ef${ef}_q${q}_pw2.log" \
+    "${BIN_DIR}/bin/gpipeann_search" \
     --index-dir "${INDEX_DIR}" --query "${QUERY}" --ground-truth "${GT}" \
     --data-type "${DATA_TYPE}" --topk "${TOPK}" --ef-search "${ef}" \
     --repeat "${REPEAT}" --pipe-width 2 --queries-per-block "${q}" \
@@ -74,12 +74,12 @@ run_one() {
 
   has_word flashanns "${E2E_SYSTEMS}" && run_flash "${ef}"
   has_word gustann "${E2E_SYSTEMS}" && run_gust "${ef}"
-  if has_word quiver "${E2E_SYSTEMS}"; then
-    run_quiver "${ef}" "${QUIVER_LOWLAT_Q}" "${QUIVER_LOWLAT_NB}"
-    run_quiver "${ef}" "${QUIVER_MID_Q}" "${QUIVER_MID_NB}"
+  if has_word gpipeann "${E2E_SYSTEMS}"; then
+    run_gpipeann "${ef}" "${GPIPEANN_LOWLAT_Q}" "${GPIPEANN_LOWLAT_NB}"
+    run_gpipeann "${ef}" "${GPIPEANN_MID_Q}" "${GPIPEANN_MID_NB}"
     local q
     for q in ${extra_q}; do
-      run_quiver "${ef}" "${q}" "${QUIVER_DEEP_EXTRA_NB}"
+      run_gpipeann "${ef}" "${q}" "${GPIPEANN_DEEP_EXTRA_NB}"
     done
   fi
 }
@@ -97,9 +97,9 @@ fi
 if [[ "${SKIP_DEEP:-0}" != 1 ]] && has_word deep "${E2E_DATASETS}"; then
   use_dataset "${DEEP_DS}"
   has_word 90 "${E2E_RECALLS}" &&
-    run_one "${DEEP_DS}" "${EF_RECALL_90}" "${QUIVER_DEEP_EXTRA_Q}"
+    run_one "${DEEP_DS}" "${EF_RECALL_90}" "${GPIPEANN_DEEP_EXTRA_Q}"
   has_word 96 "${E2E_RECALLS}" &&
-    run_one "${DEEP_DS}" "${EF_RECALL_96}" "${QUIVER_DEEP_EXTRA_Q}"
+    run_one "${DEEP_DS}" "${EF_RECALL_96}" "${GPIPEANN_DEEP_EXTRA_Q}"
 fi
 
 echo "DONE ${OUT}"

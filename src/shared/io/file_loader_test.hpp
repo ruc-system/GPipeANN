@@ -34,12 +34,12 @@ void check_direct(shared::IndexLoader& loader) {
   volatile int32_t status = 0;
   volatile int64_t completed = 0;
   Request request{5, data.data(), &status, 7};
-  if constexpr (quiver_debug::HasCompletionTime<Request>::value)
+  if constexpr (gpipeann_debug::HasCompletionTime<Request>::value)
     request.complete_ns = &completed;
   loader.submit_direct({request}, 0);
   require(__atomic_load_n(&status, __ATOMIC_ACQUIRE) == 7, "completion not published");
   expect_pages(data.data(), 5, 1);
-  if constexpr (quiver_debug::HasCompletionTime<Request>::value)
+  if constexpr (gpipeann_debug::HasCompletionTime<Request>::value)
     require(__atomic_load_n(&completed, __ATOMIC_ACQUIRE) > 0, "missing completion time");
 }
 
@@ -91,9 +91,9 @@ void run_file_loader_test(const std::filesystem::path& path) {
   expect_error([&] { shared::create_mem_loader_sync(path.c_str(), 0); });
   expect_error([&] { shared::create_mem_loader_sync(path.c_str(), 7); });
   expect_error([&] { shared::create_mem_loader_sync(path.c_str(), 6, 4097); });
-  expect_error([&] { shared::create_mem_loader_sync("/nonexistent/quiver-index", 6); });
+  expect_error([&] { shared::create_mem_loader_sync("/nonexistent/gpipeann-index", 6); });
 
-#ifdef QUIVER_FILE_TEST_GUSTANN_TRACE
+#ifdef GPIPEANN_FILE_TEST_GUSTANN_TRACE
   int64_t enqueued[1] = {0}, submitted[1] = {0}, completed[1] = {0};
   shared::TracedIoRequest traced{1, first.data(), 0, enqueued, submitted, completed};
   loader->submit_traced_task({traced}, 0, 0);
@@ -119,7 +119,7 @@ void run_file_loader_test(const std::filesystem::path& path) {
 }  // namespace
 
 int main() {
-  char name[] = "/tmp/quiver-file-loader-XXXXXX";
+  char name[] = "/tmp/gpipeann-file-loader-XXXXXX";
   char* directory = ::mkdtemp(name);
   if (!directory) return 1;
   const auto path = std::filesystem::path(directory) / "disk.index";

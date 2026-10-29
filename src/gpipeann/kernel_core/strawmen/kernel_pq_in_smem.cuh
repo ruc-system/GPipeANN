@@ -35,7 +35,7 @@
 #include "../inkernel_nav.cuh"
 #include "../policies/dispatch.cuh"
 
-namespace quiver {
+namespace gpipeann {
 namespace strawmen {
 
 constexpr int PQ_IN_SMEM_MAX_Q = 8;
@@ -74,7 +74,7 @@ __global__ void persistent_search_kernel_pq_in_smem(PersistentKernelArgs args)
     __shared__ int32_t s_snap_st[16];
     __shared__ int32_t s_snap_nd[16];
     __shared__ int32_t s_lane_req[16];
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     __shared__ int64_t s_breakdown_lane_issue_ts[PQ_IN_SMEM_MAX_Q][16];
 #endif
 
@@ -86,7 +86,7 @@ __global__ void persistent_search_kernel_pq_in_smem(PersistentKernelArgs args)
             s_slot_entry[q] = -1;
             s_slot_stage[q] = -1;
             s_slot_next[q]  = -1;
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
             for (int w = 0; w < 16; ++w)
                 s_breakdown_lane_issue_ts[q][w] = 0;
 #endif
@@ -165,8 +165,8 @@ __global__ void persistent_search_kernel_pq_in_smem(PersistentKernelArgs args)
             return false;
         }
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
-        const int breakdown_sample_idx = quiver_breakdown_sample_index(
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
+        const int breakdown_sample_idx = gpipeann_breakdown_sample_index(
             qid, args.total_queries, args.breakdown_sample_count);
         if (tid == 0 && breakdown_sample_idx >= 0 &&
             args.d_breakdown_traces != nullptr) {
@@ -260,7 +260,7 @@ __global__ void persistent_search_kernel_pq_in_smem(PersistentKernelArgs args)
         __syncthreads();
 
         if (tid == 0) {
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
             if (breakdown_sample_idx >= 0)
                 s_breakdown_lane_issue_ts[q][0] = globaltimer_ns();
 #endif
@@ -282,8 +282,8 @@ __global__ void persistent_search_kernel_pq_in_smem(PersistentKernelArgs args)
             *(volatile int32_t*)&args.comm->queries_completed = new_done;
             __threadfence_system();
             s_slot_stage[q] = -1;
-#ifdef QUIVER_LIGHT_BREAKDOWN
-            const int breakdown_sample_idx = quiver_breakdown_sample_index(
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
+            const int breakdown_sample_idx = gpipeann_breakdown_sample_index(
                 qid, args.total_queries, args.breakdown_sample_count);
             if (breakdown_sample_idx >= 0 &&
                 args.d_breakdown_traces != nullptr)
@@ -305,11 +305,11 @@ __global__ void persistent_search_kernel_pq_in_smem(PersistentKernelArgs args)
             __syncthreads();
             if (s_pick != q) return false;
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
-            const int breakdown_sample_idx = quiver_breakdown_sample_index(
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
+            const int breakdown_sample_idx = gpipeann_breakdown_sample_index(
                 s_slot_qid[q], args.total_queries,
                 args.breakdown_sample_count);
-            QuiverLightBreakdownTrace* breakdown_trace =
+            GPipeANNLightBreakdownTrace* breakdown_trace =
                 breakdown_sample_idx >= 0 &&
                         args.d_breakdown_traces != nullptr
                     ? &args.d_breakdown_traces[breakdown_sample_idx]
@@ -317,7 +317,7 @@ __global__ void persistent_search_kernel_pq_in_smem(PersistentKernelArgs args)
             int64_t breakdown_compute_start_ns = 0;
             if (tid == 0 && breakdown_trace != nullptr) {
                 const int64_t ready = globaltimer_ns();
-                quiver_breakdown_add_ssd_wait_interval(
+                gpipeann_breakdown_add_ssd_wait_interval(
                     breakdown_trace, s_breakdown_lane_issue_ts[q][0], ready);
                 s_breakdown_lane_issue_ts[q][0] = 0;
                 breakdown_compute_start_ns = globaltimer_ns();
@@ -367,9 +367,9 @@ __global__ void persistent_search_kernel_pq_in_smem(PersistentKernelArgs args)
             }
             __syncthreads();
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
             if (tid == 0 && breakdown_trace != nullptr)
-                quiver_breakdown_add_compute_interval(
+                gpipeann_breakdown_add_compute_interval(
                     breakdown_trace, breakdown_compute_start_ns,
                     globaltimer_ns());
 #endif
@@ -378,7 +378,7 @@ __global__ void persistent_search_kernel_pq_in_smem(PersistentKernelArgs args)
                 bool any_issued = false;
                 for (int w = 0; w < W; w++) {
                     if (s_lane_req[w] != -1) {
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
                         if (breakdown_trace != nullptr)
                             s_breakdown_lane_issue_ts[q][w] = globaltimer_ns();
 #endif
@@ -419,10 +419,10 @@ __global__ void persistent_search_kernel_pq_in_smem(PersistentKernelArgs args)
         }
         if (s_pick == -1) return false;
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
-        const int breakdown_sample_idx = quiver_breakdown_sample_index(
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
+        const int breakdown_sample_idx = gpipeann_breakdown_sample_index(
             s_slot_qid[q], args.total_queries, args.breakdown_sample_count);
-        QuiverLightBreakdownTrace* breakdown_trace =
+        GPipeANNLightBreakdownTrace* breakdown_trace =
             breakdown_sample_idx >= 0 && args.d_breakdown_traces != nullptr
                 ? &args.d_breakdown_traces[breakdown_sample_idx]
                 : nullptr;
@@ -432,7 +432,7 @@ __global__ void persistent_search_kernel_pq_in_smem(PersistentKernelArgs args)
             for (int w = 0; w < W; ++w) {
                 if (s_snap_st[w] == IO_READY &&
                     s_breakdown_lane_issue_ts[q][w] > 0) {
-                    quiver_breakdown_add_ssd_wait_interval(
+                    gpipeann_breakdown_add_ssd_wait_interval(
                         breakdown_trace, s_breakdown_lane_issue_ts[q][w],
                         ready);
                     s_breakdown_lane_issue_ts[q][w] = 0;
@@ -478,9 +478,9 @@ __global__ void persistent_search_kernel_pq_in_smem(PersistentKernelArgs args)
             __syncthreads();
         }
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         if (tid == 0 && breakdown_trace != nullptr)
-            quiver_breakdown_add_compute_interval(
+            gpipeann_breakdown_add_compute_interval(
                 breakdown_trace, breakdown_compute_start_ns, globaltimer_ns());
 #endif
 
@@ -499,7 +499,7 @@ __global__ void persistent_search_kernel_pq_in_smem(PersistentKernelArgs args)
             bool any_active = false;
             for (int w = 0; w < W; w++) {
                 if (s_snap_st[w] == IO_READY && s_lane_req[w] != -1) {
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
                     if (breakdown_trace != nullptr)
                         s_breakdown_lane_issue_ts[q][w] = globaltimer_ns();
 #endif
@@ -508,7 +508,7 @@ __global__ void persistent_search_kernel_pq_in_smem(PersistentKernelArgs args)
                 } else if (s_snap_st[w] != IO_READY &&
                            ctl[w].status == IO_IDLE &&
                            s_lane_req[w] != -1) {
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
                     if (breakdown_trace != nullptr)
                         s_breakdown_lane_issue_ts[q][w] = globaltimer_ns();
 #endif
@@ -594,4 +594,4 @@ __global__ void persistent_search_kernel_pq_in_smem(PersistentKernelArgs args)
 }
 
 }  // namespace strawmen
-}  // namespace quiver
+}  // namespace gpipeann

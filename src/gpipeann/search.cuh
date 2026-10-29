@@ -11,7 +11,7 @@
 #include "../shared/io/loader.hpp"
 #include "io_control.cuh"
 
-namespace quiver {
+namespace gpipeann {
 
 struct PerStepRecallOptions {
     const int* ground_truth = nullptr;
@@ -94,7 +94,7 @@ void run_static_batch_search(
     int repeat = 1,
     const EarlyExitOptions& early_exit = {});
 
-#ifdef QUIVER_BUILD_STRAWMEN
+#ifdef GPIPEANN_BUILD_STRAWMEN
 
 inline constexpr int kNaiveBlockMultiQueryThreadsPerQuery = 128;
 
@@ -135,7 +135,7 @@ void run_barrier_search(
 // a clean "LAUNCH_ABORTED (smem overflow)" diagnostic in that case.
 //
 // Ablation isolation: memory class of pq_dists only; scheduler, IO state
-// machine, streaming admission identical to Quiver baseline.
+// machine, streaming admission identical to GPipeANN baseline.
 void run_pq_in_smem_search(
     const shared::Layout& layout,
     shared::DataType data_type,
@@ -158,7 +158,7 @@ void run_pq_in_smem_search(
     int repeat = 1);
 
 // Strawman PQ-in-global-memory / explicit context spill-load.
-// Same scheduler and IO state machine as Quiver Q-interleave, but no per-slot
+// Same scheduler and IO state machine as GPipeANN Q-interleave, but no per-slot
 // search context is kept resident in shared memory across slot switches.  Each
 // scheduled slot explicitly loads its full context from global memory into one
 // block-local shared workspace, processes ready IO, then writes the context
@@ -190,7 +190,7 @@ void run_pq_in_gmem_search(
 //
 // Ablation isolation: block-thread topology + intra-block scheduler only;
 // streaming admission, per-slot resource layout, IO state machine, and
-// PQ memory class identical to Quiver.
+// PQ memory class identical to GPipeANN.
 void run_naive_block_multi_query_search(
     const shared::Layout& layout,
     shared::DataType data_type,
@@ -212,6 +212,6 @@ void run_naive_block_multi_query_search(
     int queries_per_block = 1,
     int repeat = 1);
 
-#endif  // QUIVER_BUILD_STRAWMEN
+#endif  // GPIPEANN_BUILD_STRAWMEN
 
-} // namespace quiver
+} // namespace gpipeann

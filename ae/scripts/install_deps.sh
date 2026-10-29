@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install host packages used to build Quiver, SPDK, the plotter, and FusionANNS.
+# Install host packages used to build GPipeANN, SPDK, the plotter, and FusionANNS.
 # CUDA 12.x is not installed here; put its bin directory on PATH first.
 #   ./ae/scripts/install_deps.sh
 set -euo pipefail

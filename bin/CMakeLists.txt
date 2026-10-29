@@ -40,46 +40,46 @@ add_search_executable(probe_flashanns_search_pw3 flashanns_search.cu flashanns_p
 add_search_executable(probe_flashanns_search_pw4 flashanns_search.cu flashanns_probe_pw4_lib
   "${PROJECT_SOURCE_DIR}/src/flashanns")
 
-# Quiver: uses top-level src/ (shared/ is public)
-add_search_executable(quiver_search quiver_search.cu quiver_lib
+# GPipeANN: uses top-level src/ (shared/ is public)
+add_search_executable(gpipeann_search gpipeann_search.cu gpipeann_lib
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(probe_quiver_search quiver_search.cu quiver_probe_lib
+add_search_executable(probe_gpipeann_search gpipeann_search.cu gpipeann_probe_lib
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(quiver_search_pw1_q1 quiver_search.cu quiver_lib_pw1_q1
+add_search_executable(gpipeann_search_pw1_q1 gpipeann_search.cu gpipeann_lib_pw1_q1
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(quiver_search_pw1_q2 quiver_search.cu quiver_lib_pw1_q2
+add_search_executable(gpipeann_search_pw1_q2 gpipeann_search.cu gpipeann_lib_pw1_q2
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(quiver_search_pw1_q4 quiver_search.cu quiver_lib_pw1_q4
+add_search_executable(gpipeann_search_pw1_q4 gpipeann_search.cu gpipeann_lib_pw1_q4
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(quiver_search_pw1_q8 quiver_search.cu quiver_lib_pw1_q8
+add_search_executable(gpipeann_search_pw1_q8 gpipeann_search.cu gpipeann_lib_pw1_q8
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(quiver_search_pw2_q1 quiver_search.cu quiver_lib_pw2_q1
+add_search_executable(gpipeann_search_pw2_q1 gpipeann_search.cu gpipeann_lib_pw2_q1
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(quiver_search_pw2_q2 quiver_search.cu quiver_lib_pw2_q2
+add_search_executable(gpipeann_search_pw2_q2 gpipeann_search.cu gpipeann_lib_pw2_q2
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(quiver_search_pw2_q3 quiver_search.cu quiver_lib_pw2_q3
+add_search_executable(gpipeann_search_pw2_q3 gpipeann_search.cu gpipeann_lib_pw2_q3
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(quiver_search_pw2_q4 quiver_search.cu quiver_lib_pw2_q4
+add_search_executable(gpipeann_search_pw2_q4 gpipeann_search.cu gpipeann_lib_pw2_q4
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(quiver_search_pw4_q1 quiver_search.cu quiver_lib_pw4_q1
+add_search_executable(gpipeann_search_pw4_q1 gpipeann_search.cu gpipeann_lib_pw4_q1
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(probe_quiver_search_pw1_q1 quiver_search.cu quiver_probe_lib_pw1_q1
+add_search_executable(probe_gpipeann_search_pw1_q1 gpipeann_search.cu gpipeann_probe_lib_pw1_q1
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(probe_quiver_search_pw1_q2 quiver_search.cu quiver_probe_lib_pw1_q2
+add_search_executable(probe_gpipeann_search_pw1_q2 gpipeann_search.cu gpipeann_probe_lib_pw1_q2
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(probe_quiver_search_pw1_q4 quiver_search.cu quiver_probe_lib_pw1_q4
+add_search_executable(probe_gpipeann_search_pw1_q4 gpipeann_search.cu gpipeann_probe_lib_pw1_q4
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(probe_quiver_search_pw1_q8 quiver_search.cu quiver_probe_lib_pw1_q8
+add_search_executable(probe_gpipeann_search_pw1_q8 gpipeann_search.cu gpipeann_probe_lib_pw1_q8
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(probe_quiver_search_pw2_q1 quiver_search.cu quiver_probe_lib_pw2_q1
+add_search_executable(probe_gpipeann_search_pw2_q1 gpipeann_search.cu gpipeann_probe_lib_pw2_q1
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(probe_quiver_search_pw2_q2 quiver_search.cu quiver_probe_lib_pw2_q2
+add_search_executable(probe_gpipeann_search_pw2_q2 gpipeann_search.cu gpipeann_probe_lib_pw2_q2
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(probe_quiver_search_pw2_q3 quiver_search.cu quiver_probe_lib_pw2_q3
+add_search_executable(probe_gpipeann_search_pw2_q3 gpipeann_search.cu gpipeann_probe_lib_pw2_q3
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(probe_quiver_search_pw2_q4 quiver_search.cu quiver_probe_lib_pw2_q4
+add_search_executable(probe_gpipeann_search_pw2_q4 gpipeann_search.cu gpipeann_probe_lib_pw2_q4
   "${PROJECT_SOURCE_DIR}/src")
-add_search_executable(probe_quiver_search_pw4_q1 quiver_search.cu quiver_probe_lib_pw4_q1
+add_search_executable(probe_gpipeann_search_pw4_q1 gpipeann_search.cu gpipeann_probe_lib_pw4_q1
   "${PROJECT_SOURCE_DIR}/src")
 
 add_executable(search_setup_test
@@ -94,58 +94,58 @@ target_compile_options(search_setup_test
   PRIVATE "-O2" "-g")
 
 # ----------------------------------------------------------------------------
-# Strawman ablation binaries (gated on QUIVER_BUILD_STRAWMEN).
+# Strawman ablation binaries (gated on GPIPEANN_BUILD_STRAWMEN).
 # These exist only to defend the §Key Idea section by quantifying strawman
 # design alternatives.
 # ----------------------------------------------------------------------------
-if (QUIVER_BUILD_STRAWMEN)
+if (GPIPEANN_BUILD_STRAWMEN)
   add_search_executable(strawmen_static_dispatch strawmen_static_dispatch.cu
-    quiver_lib "${PROJECT_SOURCE_DIR}/src")
+    gpipeann_lib "${PROJECT_SOURCE_DIR}/src")
   add_search_executable(probe_strawmen_static_dispatch
-    strawmen_static_dispatch.cu quiver_probe_lib "${PROJECT_SOURCE_DIR}/src")
+    strawmen_static_dispatch.cu gpipeann_probe_lib "${PROJECT_SOURCE_DIR}/src")
   add_search_executable(probe_strawmen_static_dispatch_pw1_q1
-    strawmen_static_dispatch.cu quiver_probe_lib_pw1_q1
+    strawmen_static_dispatch.cu gpipeann_probe_lib_pw1_q1
     "${PROJECT_SOURCE_DIR}/src")
   add_search_executable(probe_strawmen_static_dispatch_pw1_q2
-    strawmen_static_dispatch.cu quiver_probe_lib_pw1_q2
+    strawmen_static_dispatch.cu gpipeann_probe_lib_pw1_q2
     "${PROJECT_SOURCE_DIR}/src")
   add_search_executable(probe_strawmen_static_dispatch_pw1_q4
-    strawmen_static_dispatch.cu quiver_probe_lib_pw1_q4
+    strawmen_static_dispatch.cu gpipeann_probe_lib_pw1_q4
     "${PROJECT_SOURCE_DIR}/src")
   add_search_executable(probe_strawmen_static_dispatch_pw1_q8
-    strawmen_static_dispatch.cu quiver_probe_lib_pw1_q8
+    strawmen_static_dispatch.cu gpipeann_probe_lib_pw1_q8
     "${PROJECT_SOURCE_DIR}/src")
   add_search_executable(probe_strawmen_static_dispatch_pw2_q1
-    strawmen_static_dispatch.cu quiver_probe_lib_pw2_q1
+    strawmen_static_dispatch.cu gpipeann_probe_lib_pw2_q1
     "${PROJECT_SOURCE_DIR}/src")
   add_search_executable(probe_strawmen_static_dispatch_pw2_q2
-    strawmen_static_dispatch.cu quiver_probe_lib_pw2_q2
+    strawmen_static_dispatch.cu gpipeann_probe_lib_pw2_q2
     "${PROJECT_SOURCE_DIR}/src")
   add_search_executable(probe_strawmen_static_dispatch_pw4_q1
-    strawmen_static_dispatch.cu quiver_probe_lib_pw4_q1
+    strawmen_static_dispatch.cu gpipeann_probe_lib_pw4_q1
     "${PROJECT_SOURCE_DIR}/src")
 
   add_search_executable(strawmen_early_exit strawmen_early_exit.cu
-    quiver_lib "${PROJECT_SOURCE_DIR}/src")
+    gpipeann_lib "${PROJECT_SOURCE_DIR}/src")
 
   add_search_executable(strawmen_barrier strawmen_barrier.cu
-    quiver_lib "${PROJECT_SOURCE_DIR}/src")
-  target_compile_definitions(strawmen_barrier PRIVATE QUIVER_BUILD_STRAWMEN)
+    gpipeann_lib "${PROJECT_SOURCE_DIR}/src")
+  target_compile_definitions(strawmen_barrier PRIVATE GPIPEANN_BUILD_STRAWMEN)
 
   add_search_executable(strawmen_pq_in_smem strawmen_pq_in_smem.cu
-    quiver_lib "${PROJECT_SOURCE_DIR}/src")
-  target_compile_definitions(strawmen_pq_in_smem PRIVATE QUIVER_BUILD_STRAWMEN)
+    gpipeann_lib "${PROJECT_SOURCE_DIR}/src")
+  target_compile_definitions(strawmen_pq_in_smem PRIVATE GPIPEANN_BUILD_STRAWMEN)
 
   add_search_executable(strawmen_pq_in_gmem strawmen_pq_in_gmem.cu
-    quiver_lib "${PROJECT_SOURCE_DIR}/src")
-  target_compile_definitions(strawmen_pq_in_gmem PRIVATE QUIVER_BUILD_STRAWMEN)
+    gpipeann_lib "${PROJECT_SOURCE_DIR}/src")
+  target_compile_definitions(strawmen_pq_in_gmem PRIVATE GPIPEANN_BUILD_STRAWMEN)
 
   add_search_executable(strawmen_naive_block_multi_query strawmen_naive_block_multi_query.cu
-    quiver_lib "${PROJECT_SOURCE_DIR}/src")
-  target_compile_definitions(strawmen_naive_block_multi_query PRIVATE QUIVER_BUILD_STRAWMEN)
+    gpipeann_lib "${PROJECT_SOURCE_DIR}/src")
+  target_compile_definitions(strawmen_naive_block_multi_query PRIVATE GPIPEANN_BUILD_STRAWMEN)
 endif()
 
-if (QUIVER_ENABLE_SPDK)
+if (GPIPEANN_ENABLE_SPDK)
   add_executable(spdk_write spdk_write.cpp)
   target_link_libraries(spdk_write PRIVATE shared_common_lib shared_spdk_wrapper)
 

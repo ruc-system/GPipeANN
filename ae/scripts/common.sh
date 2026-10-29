@@ -76,31 +76,31 @@ NUM_BLOCKS_LIST="${NUM_BLOCKS_LIST:-108,216,324,432,540,648,756,864,972,1080}"
 MINI_BATCH_LIST="${MINI_BATCH_LIST:-16,24,32,48,64,96,128,192,256,384,512,768,1024,1120}"
 
 # Throughput-latency curves are the Pareto front over each system's tuning
-# knobs, not a single occupancy sweep. Quiver trades Q against latency the way
+# knobs, not a single occupancy sweep. GPipeANN trades Q against latency the way
 # the baselines trade batch size, so a fixed Q shows only one slice of its
 # curve: on SIFT ef=45 the paper's low-latency end comes from Q=1 and its
-# peak-throughput end from Q=4 (results/sift1b-quiver/q{1..4}_ef45_*.log).
+# peak-throughput end from Q=4 (results/sift1b-gpipeann/q{1..4}_ef45_*.log).
 # Every system gets the same pipe-width budget so the fronts stay comparable.
-QUIVER_Q_LIST="${QUIVER_Q_LIST:-1 2 3 4}"
-QUIVER_PW_LIST="${QUIVER_PW_LIST:-1 2}"
+GPIPEANN_Q_LIST="${GPIPEANN_Q_LIST:-1 2 3 4}"
+GPIPEANN_PW_LIST="${GPIPEANN_PW_LIST:-1 2}"
 FLASH_PW_LIST="${FLASH_PW_LIST:-1 2}"
 GUST_PW_LIST="${GUST_PW_LIST:-1 2}"
 
 # Single-operating-point figures (breakdown, GPU utilization) pick one point
 # per system instead of a curve. Defaults are the paper's iso-throughput set
 # from results/tech-breakdown-recall90-70k/ (Recall@10=0.90, 55-72k QPS):
-# Quiver nb=216 Q=2, FlashANNS nb=756, GustANN mini_batch=48, +S nb=324 Q=2.
+# GPipeANN nb=216 Q=2, FlashANNS nb=756, GustANN mini_batch=48, +S nb=324 Q=2.
 # They were tuned on 1B / 4 SSD; re-match them if AE_SCALE=1m shifts the knee.
-PIPE_WIDTH_QUIVER="${PIPE_WIDTH_QUIVER:-2}"
+PIPE_WIDTH_GPIPEANN="${PIPE_WIDTH_GPIPEANN:-2}"
 PIPE_WIDTH_FLASH="${PIPE_WIDTH_FLASH:-2}"
 PIPE_WIDTH_GUST="${PIPE_WIDTH_GUST:-1}"
 QUERIES_PER_BLOCK="${QUERIES_PER_BLOCK:-2}"
-POINT_QUIVER_BLOCKS="${POINT_QUIVER_BLOCKS:-216}"
+POINT_GPIPEANN_BLOCKS="${POINT_GPIPEANN_BLOCKS:-216}"
 POINT_FLASH_BLOCKS="${POINT_FLASH_BLOCKS:-756}"
 POINT_PLUS_S_BLOCKS="${POINT_PLUS_S_BLOCKS:-324}"
 POINT_GUST_MINI_BATCH="${POINT_GUST_MINI_BATCH:-48}"
 LOCK_FILE="${LOCK_FILE:-/tmp/xxx.lock}"
-QUIVER_SPDK_BLOCK_OFFSET="${QUIVER_SPDK_BLOCK_OFFSET:-0}"
+GPIPEANN_SPDK_BLOCK_OFFSET="${GPIPEANN_SPDK_BLOCK_OFFSET:-0}"
 
 # LBA defaults (4 KiB); override them in ae/config.env for another layout.
 DEEP1B_SPDK_BASE_LBA="${DEEP1B_SPDK_BASE_LBA:-0}"
@@ -137,8 +137,8 @@ OPENAI1M_EF=75
 OPENAI1M_REPEAT=20
 OPENAI1M_NUM_BLOCKS_LIST="108,216,324,432,540,648,756,864,972,1080"
 OPENAI1M_MINI_BATCH_LIST="16,24,32,48,64,96,128,192"
-OPENAI1M_QUIVER_Q1_NBS="108,216,324"
-OPENAI1M_QUIVER_Q2_NBS="${OPENAI1M_NUM_BLOCKS_LIST}"
+OPENAI1M_GPIPEANN_Q1_NBS="108,216,324"
+OPENAI1M_GPIPEANN_Q2_NBS="${OPENAI1M_NUM_BLOCKS_LIST}"
 
 SIFT1B_QUERY="${SIFT1B_QUERY:-${DATASET_ROOT}/sift1b/query.u8bin}"
 SIFT1B_GT="${SIFT1B_GT:-${DATASET_ROOT}/sift1b/gt.ibin}"
@@ -422,7 +422,7 @@ PY
 }
 
 ae_debug_signature() {
-  local variant="${QUIVER_AE_VARIANT:-}" joined binary_stamp=""
+  local variant="${GPIPEANN_AE_VARIANT:-}" joined binary_stamp=""
   if [[ -e "${1:-}" ]]; then
     binary_stamp="$(stat -Lc '%Y:%s' "$1")"
   fi
@@ -559,20 +559,20 @@ ae_export_result_csv() {
   local out_dir stem ef=""
   out_dir="$(cd -- "$(dirname -- "${log}")" && pwd)"
   stem="$(basename "${log}" .log)"
-  export QUIVER_AE_METRICS_CSV="${out_dir}/metrics.csv"
-  export QUIVER_AE_BREAKDOWN_CSV="${out_dir}/breakdown.csv"
+  export GPIPEANN_AE_METRICS_CSV="${out_dir}/metrics.csv"
+  export GPIPEANN_AE_BREAKDOWN_CSV="${out_dir}/breakdown.csv"
   # Per-query breakdown rows: no plot reads them, and they cost ~2MB per run.
-  export QUIVER_AE_BREAKDOWN_SAMPLES_CSV=""
-  export QUIVER_AE_CTA_SAMPLES_CSV="${out_dir}/cta_samples.csv"
+  export GPIPEANN_AE_BREAKDOWN_SAMPLES_CSV=""
+  export GPIPEANN_AE_CTA_SAMPLES_CSV="${out_dir}/cta_samples.csv"
   # Per-hop wait/compute intervals are only read by the io_latency plot, and
   # they run to hundreds of MB on a full occupancy sweep. Opt in.
   if [[ "${AE_HOP_SAMPLES:-0}" == "1" ]]; then
-    export QUIVER_AE_HOP_SAMPLES_CSV="${out_dir}/hop_samples.csv"
+    export GPIPEANN_AE_HOP_SAMPLES_CSV="${out_dir}/hop_samples.csv"
   else
-    export QUIVER_AE_HOP_SAMPLES_CSV=""
+    export GPIPEANN_AE_HOP_SAMPLES_CSV=""
   fi
-  export QUIVER_AE_STEM="${stem}"
-  export QUIVER_AE_DATASET="${DATASET:-}"
+  export GPIPEANN_AE_STEM="${stem}"
+  export GPIPEANN_AE_DATASET="${DATASET:-}"
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --ef-search)
@@ -588,8 +588,8 @@ ae_export_result_csv() {
         ;;
     esac
   done
-  export QUIVER_AE_EF="${ef}"
-  export QUIVER_AE_TARGET_RECALL="${QUIVER_AE_TARGET_RECALL_OVERRIDE:-$(ae_target_recall_from_ef "${ef}")}"
+  export GPIPEANN_AE_EF="${ef}"
+  export GPIPEANN_AE_TARGET_RECALL="${GPIPEANN_AE_TARGET_RECALL_OVERRIDE:-$(ae_target_recall_from_ef "${ef}")}"
 }
 
 ae_print_layout() {
@@ -870,7 +870,7 @@ run_search() {
       echo "AE_SCALE=${AE_SCALE}"
       echo "CUDA_VISIBLE_DEVICES=${GPU_ID}"
       echo "SPDK_BASE_LBA=${SPDK_BASE_LBA}"
-      echo "QUIVER_SPDK_BLOCK_OFFSET=${QUIVER_SPDK_BLOCK_OFFSET}"
+      echo "GPIPEANN_SPDK_BLOCK_OFFSET=${GPIPEANN_SPDK_BLOCK_OFFSET}"
       echo "ssd_list=${SSD_LIST}"
       echo "PCI_1SSD=${PCI_1SSD:-}"
       echo "BIN_DIR=${BIN_DIR}"
@@ -882,19 +882,19 @@ run_search() {
       CUDA_VISIBLE_DEVICES="${GPU_ID}" \
       SPDK_QPAIRS_PER_SSD=1 \
       SPDK_NUM_QP=1 \
-      QUIVER_SPDK_DIAG=0 \
+      GPIPEANN_SPDK_DIAG=0 \
       SPDK_BASE_LBA="${SPDK_BASE_LBA}" \
-      QUIVER_SPDK_BLOCK_OFFSET="${QUIVER_SPDK_BLOCK_OFFSET}" \
-      QUIVER_AE_METRICS_CSV="${QUIVER_AE_METRICS_CSV:-}" \
-      QUIVER_AE_BREAKDOWN_CSV="${QUIVER_AE_BREAKDOWN_CSV:-}" \
-      QUIVER_AE_BREAKDOWN_SAMPLES_CSV="${QUIVER_AE_BREAKDOWN_SAMPLES_CSV:-}" \
-      QUIVER_AE_CTA_SAMPLES_CSV="${QUIVER_AE_CTA_SAMPLES_CSV:-}" \
-      QUIVER_AE_HOP_SAMPLES_CSV="${QUIVER_AE_HOP_SAMPLES_CSV:-}" \
-      QUIVER_AE_STEM="${QUIVER_AE_STEM:-}" \
-      QUIVER_AE_DATASET="${QUIVER_AE_DATASET:-}" \
-      QUIVER_AE_EF="${QUIVER_AE_EF:-}" \
-      QUIVER_AE_TARGET_RECALL="${QUIVER_AE_TARGET_RECALL:-}" \
-      QUIVER_AE_VARIANT="${QUIVER_AE_VARIANT:-}" \
+      GPIPEANN_SPDK_BLOCK_OFFSET="${GPIPEANN_SPDK_BLOCK_OFFSET}" \
+      GPIPEANN_AE_METRICS_CSV="${GPIPEANN_AE_METRICS_CSV:-}" \
+      GPIPEANN_AE_BREAKDOWN_CSV="${GPIPEANN_AE_BREAKDOWN_CSV:-}" \
+      GPIPEANN_AE_BREAKDOWN_SAMPLES_CSV="${GPIPEANN_AE_BREAKDOWN_SAMPLES_CSV:-}" \
+      GPIPEANN_AE_CTA_SAMPLES_CSV="${GPIPEANN_AE_CTA_SAMPLES_CSV:-}" \
+      GPIPEANN_AE_HOP_SAMPLES_CSV="${GPIPEANN_AE_HOP_SAMPLES_CSV:-}" \
+      GPIPEANN_AE_STEM="${GPIPEANN_AE_STEM:-}" \
+      GPIPEANN_AE_DATASET="${GPIPEANN_AE_DATASET:-}" \
+      GPIPEANN_AE_EF="${GPIPEANN_AE_EF:-}" \
+      GPIPEANN_AE_TARGET_RECALL="${GPIPEANN_AE_TARGET_RECALL:-}" \
+      GPIPEANN_AE_VARIANT="${GPIPEANN_AE_VARIANT:-}" \
       ${AE_NUMA_PREFIX} \
       "${current[@]}" >> "${log}" 2>&1 &
     local pid=$!

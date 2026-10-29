@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
 
 #include <algorithm>
 #include <cstdint>
@@ -12,8 +12,8 @@
 namespace shared {
 namespace breakdown {
 
-static constexpr int QUIVER_LIGHT_BREAKDOWN_SAMPLE_QUERIES = 200;
-static constexpr int QUIVER_LIGHT_BREAKDOWN_SAMPLE_BATCHES = 20;
+static constexpr int GPIPEANN_LIGHT_BREAKDOWN_SAMPLE_QUERIES = 200;
+static constexpr int GPIPEANN_LIGHT_BREAKDOWN_SAMPLE_BATCHES = 20;
 
 __host__ __device__ __forceinline__ int sample_query_id(
     int sample_idx, int total_queries, int sample_count) {
@@ -313,7 +313,7 @@ inline void print_closed_metric_samples(
   std::printf("=============================================\n\n");
 }
 
-inline void print_quiver_metric_samples(
+inline void print_gpipeann_metric_samples(
     const std::vector<double>& compute,
     const std::vector<double>& io_wait,
     const std::vector<double>& resume,
@@ -328,7 +328,7 @@ inline void print_quiver_metric_samples(
     const std::vector<double>& cta_pure_io_wait,
     const std::vector<double>& cta_active_ratio) {
   (void)latency;
-  print_closed_metric_samples("Quiver", compute, io_wait, resume,
+  print_closed_metric_samples("GPipeANN", compute, io_wait, resume,
                               scheduling_gap, other, kernel_launch, h2d, d2h,
                               cta_window, cta_active, cta_pure_io_wait,
                               cta_active_ratio);
@@ -357,4 +357,4 @@ inline void print_cta_window_samples(
 }  // namespace breakdown
 }  // namespace shared
 
-#endif  // QUIVER_LIGHT_BREAKDOWN
+#endif  // GPIPEANN_LIGHT_BREAKDOWN

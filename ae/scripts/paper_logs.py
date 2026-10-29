@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Parse Quiver/FlashANNS/GustANN/strawman search logs into sweep points.
+"""Parse GPipeANN/FlashANNS/GustANN/strawman search logs into sweep points.
 
 Works on both the paper-era logs under `results/` and anything `fig_paper.sh`
 writes, so the same plotter can draw the submitted figures and a fresh run.
@@ -17,13 +17,14 @@ RESULT = re.compile(r"^=+ (.+?) Result =+$")
 KV = re.compile(r"([A-Za-z_][\w.]*)=([\w.\-/]+)")
 QPS = re.compile(r"^QPS:\s*([\d.]+)")
 LAT = re.compile(r"^(Query|Batch)Latency\(ms\):\s*(.*)$")
-QUIVER_BATCH = re.compile(r"^\[Quiver\] BatchLatency\(ms\):\s*(.*)$")
+GPIPEANN_BATCH = re.compile(r"^\[(?:GPipeANN|Quiver)\] BatchLatency\(ms\):\s*(.*)$")
 RECALL = re.compile(r"^Recall @ (\d+):\s*([\d.]+)")
 # "  Compute      200    914.45   896.88  1017.36  1176.44  1374.37"
 TECH = re.compile(r"^([A-Za-z][\w %./-]*?)\s+(\d+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)$")
 
 SYSTEM_ALIASES = {
-    "Quiver": "Quiver",
+    "GPipeANN": "GPipeANN",
+    "Quiver": "GPipeANN",  # Preserve the original labels in archived logs.
     "FlashANNS": "FlashANNS",
     "GustANN": "GustANN",
     "PQInSmem": "+S",
@@ -46,7 +47,7 @@ class Point:
     qps: float
     recall: float
     query: dict = field(default_factory=dict)   # avg/p50/p90/p99/... from QueryLatency
-    batch: dict = field(default_factory=dict)   # same from [Quiver] BatchLatency
+    batch: dict = field(default_factory=dict)   # same from [GPipeANN] BatchLatency
     tech: dict = field(default_factory=dict)    # Tech-Analysis Samples rows
     stem: str = ""
     variant: str = ""
@@ -54,7 +55,7 @@ class Point:
     def latency(self, stat: str, prefer_batch: bool = False) -> float:
         """One latency statistic, optionally preferring the BatchLatency table.
 
-        Quiver logs carry both; the paper's e2e figure reads BatchLatency for
+        GPipeANN logs carry both; the paper's e2e figure reads BatchLatency for
         SIFT and QueryLatency for DEEP, so the caller has to say which.
         """
         if prefer_batch and stat in self.batch:
@@ -148,7 +149,7 @@ def parse_log(path: Path) -> list[Point]:
         if m:
             cur["_batch" if m.group(1) == "Batch" else "_query"] = _floats(m.group(2))
             continue
-        m = QUIVER_BATCH.match(line)
+        m = GPIPEANN_BATCH.match(line)
         if m:
             cur["_batch"] = _floats(m.group(1))
             continue

@@ -27,8 +27,8 @@ from paper_contract import figure_size
 logging.getLogger("fontTools.subset").setLevel(logging.ERROR)
 logging.getLogger("fontTools.ttLib.tables._p_o_s_t").setLevel(logging.ERROR)
 
-SYSTEMS = ("FlashANNS", "GustANN", "Quiver")
-DISPLAY = {"Quiver": "Quiver(ours)", "FlashANNS": "FlashANNS", "GustANN": "GustANN"}
+SYSTEMS = ("FlashANNS", "GustANN", "GPipeANN")
+DISPLAY = {"GPipeANN": "GPipeANN(ours)", "FlashANNS": "FlashANNS", "GustANN": "GustANN"}
 
 
 def line_style(system: str) -> dict:
@@ -86,16 +86,16 @@ def draw_panel(
     panel: str,
     *,
     gust_minibatch_min: int | None = None,
-    quiver_latency_max_ms: float | None = None,
+    gpipeann_latency_max_ms: float | None = None,
 ) -> None:
     grouped = read_points(
         csv_path,
         gust_minibatch_min=gust_minibatch_min,
     )
-    if quiver_latency_max_ms is not None:
-        grouped["Quiver"] = [
-            point for point in grouped.get("Quiver", [])
-            if point[0] <= quiver_latency_max_ms
+    if gpipeann_latency_max_ms is not None:
+        grouped["GPipeANN"] = [
+            point for point in grouped.get("GPipeANN", [])
+            if point[0] <= gpipeann_latency_max_ms
         ]
     all_latency: list[float] = []
     all_qps: list[float] = []
@@ -163,11 +163,11 @@ def main(argv: list[str] | None = None) -> int:
         args.openai,
         "OpenAI1M",
         gust_minibatch_min=16,
-        quiver_latency_max_ms=40,
+        gpipeann_latency_max_ms=40,
     )
     draw_panel(
         axes[1], args.zipf, "SIFT1B-Zipf",
-        quiver_latency_max_ms=15,
+        gpipeann_latency_max_ms=15,
     )
 
     handles = [Line2D([], [], **line_style(system)) for system in SYSTEMS]

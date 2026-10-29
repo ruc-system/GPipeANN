@@ -1,4 +1,4 @@
-#define QUIVER_LATENCY_PROBE
+#define GPIPEANN_LATENCY_PROBE
 
 #include "probe_report.cuh"
 
@@ -15,7 +15,7 @@ namespace {
 
 void require(bool condition, const char* message) {
   if (!condition) {
-    std::cerr << "quiver_probe_report_test failed: " << message << std::endl;
+    std::cerr << "gpipeann_probe_report_test failed: " << message << std::endl;
     std::exit(1);
   }
 }
@@ -23,7 +23,7 @@ void require(bool condition, const char* message) {
 void require_near(double actual, double expected, double tolerance,
                   const char* message) {
   if (std::fabs(actual - expected) > tolerance) {
-    std::cerr << "quiver_probe_report_test failed: " << message
+    std::cerr << "gpipeann_probe_report_test failed: " << message
               << " actual=" << actual << " expected=" << expected
               << std::endl;
     std::exit(1);
@@ -37,16 +37,16 @@ int main() {
   std::vector<int64_t> complete_ns{1500, 0, 3250, 3999};
   std::vector<double> latencies;
 
-  quiver::append_completed_io_latencies(latencies, submit_ns, complete_ns);
+  gpipeann::append_completed_io_latencies(latencies, submit_ns, complete_ns);
 
   require(latencies.size() == 2, "only completed requests should be recorded");
   require(latencies[0] == 0.5, "first completed request latency should be 0.5 us");
   require(latencies[1] == 0.25, "second completed request latency should be 0.25 us");
 
-  setenv("QUIVER_PROBE_CDF_POINTS", "5", 1);
+  setenv("GPIPEANN_PROBE_CDF_POINTS", "5", 1);
   const std::string csv_path =
-      "/tmp/quiver_probe_report_test_" + std::to_string(::getpid()) + ".csv";
-  quiver::write_probe_cdf_csv(csv_path.c_str(),
+      "/tmp/gpipeann_probe_report_test_" + std::to_string(::getpid()) + ".csv";
+  gpipeann::write_probe_cdf_csv(csv_path.c_str(),
                               {0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
 
   std::ifstream csv(csv_path);
@@ -75,7 +75,7 @@ int main() {
   require(values[3] == 6, "fourth interval minimum should be 6");
   require(values[4] == 8, "last interval minimum should be 8, not global max");
 
-  quiver::QuiverProbeBlockTrace block_trace{};
+  gpipeann::GPipeANNProbeBlockTrace block_trace{};
   block_trace.block_id = 7;
   block_trace.query_count = 12;
   block_trace.t_block_start = 1000;
@@ -83,8 +83,8 @@ int main() {
   block_trace.no_ready_wait_ns = 20000;
   block_trace.no_ready_spins = 42;
 
-  const std::vector<quiver::QuiverBlockTimelineBreak> timelines =
-      quiver::collect_native_block_timeline_breaks(&block_trace, 1);
+  const std::vector<gpipeann::GPipeANNBlockTimelineBreak> timelines =
+      gpipeann::collect_native_block_timeline_breaks(&block_trace, 1);
   require(timelines.size() == 1, "one native block trace should produce one timeline");
   require(timelines[0].block_id == 7, "block id should be preserved");
   require(timelines[0].query_count == 12, "query count should be preserved");

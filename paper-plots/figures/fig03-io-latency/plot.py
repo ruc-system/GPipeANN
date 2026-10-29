@@ -453,7 +453,7 @@ FLASHANNS_IO_CDF = [
     (0.198493, 0.995002),
 ]
 
-QUIVER_IO_CDF = [
+GPIPEANN_IO_CDF = [
     (0.016889, 9.5748e-08),
     (0.057596, 0.00500006),
     (0.058976, 0.01),
@@ -744,7 +744,7 @@ def build_series() -> list[PlotSeries]:
     return [
         PlotSeries("GustANN", GUSTANN_IO_CDF, "#2ca02c", "^"),
         PlotSeries("FlashANNS", FLASHANNS_IO_CDF, "#ff7f0e", "s"),
-        PlotSeries("GPipeANN\n(ours)", QUIVER_IO_CDF, "#1f77b4", "o", linewidth=1.6),
+        PlotSeries("GPipeANN\n(ours)", GPIPEANN_IO_CDF, "#1f77b4", "o", linewidth=1.6),
     ]
 
 

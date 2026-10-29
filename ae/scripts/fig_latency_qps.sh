@@ -8,7 +8,7 @@ apply_paper_knobs
 
 require_bin flashanns_search
 require_bin gustann_search
-require_bin quiver_search
+require_bin gpipeann_search
 ae_lock
 use_dataset sift
 OUT="$(prepare_out latency_qps)"
@@ -49,15 +49,15 @@ for pw in ${GUST_PW_LIST}; do
     --mini-batch-list "${MINI_BATCH_LIST}"
 done
 
-for pw in ${QUIVER_PW_LIST}; do
-  for q in ${QUIVER_Q_LIST}; do
+for pw in ${GPIPEANN_PW_LIST}; do
+  for q in ${GPIPEANN_Q_LIST}; do
     case "${q}" in
-      1) quiver_nbs="${QUIVER_LOWLAT_NB:-108,216,324}" ;;
-      2) quiver_nbs="${QUIVER_MID_NB:-216,324,432,540,648,756,864,972}" ;;
+      1) gpipeann_nbs="${GPIPEANN_LOWLAT_NB:-108,216,324}" ;;
+      2) gpipeann_nbs="${GPIPEANN_MID_NB:-216,324,432,540,648,756,864,972}" ;;
       *) continue ;;
     esac
-    run_search "${OUT}/quiver_${DATASET}_ef${EF}_q${q}_pw${pw}.log" \
-      "${BIN_DIR}/bin/quiver_search" \
+    run_search "${OUT}/gpipeann_${DATASET}_ef${EF}_q${q}_pw${pw}.log" \
+      "${BIN_DIR}/bin/gpipeann_search" \
       --index-dir "${INDEX_DIR}" \
       --query "${QUERY}" \
       --ground-truth "${GT}" \
@@ -70,7 +70,7 @@ for pw in ${QUIVER_PW_LIST}; do
       --poll-threads "${POLL_THREADS}" \
       --early-exit-policy none \
       --ssd-list-file "${SSD_LIST}" \
-      --num-blocks-list "${quiver_nbs}"
+      --num-blocks-list "${gpipeann_nbs}"
   done
 done
 

@@ -23,11 +23,11 @@ for i, arg in enumerate(args):
 with open(os.environ['TRACE'], 'a') as f:
     f.write(','.join(values) + '\n')
 axis = 'mini_batch' if any('mini-batch' in a for a in args) else 'num_blocks'
-path = Path(os.environ['QUIVER_AE_METRICS_CSV'])
+path = Path(os.environ['GPIPEANN_AE_METRICS_CSV'])
 for value in values:
-    print('Quiver Sweep: ' + axis + '=' + value, flush=True)
+    print('GPipeANN Sweep: ' + axis + '=' + value, flush=True)
     fields = ['stem', 'num_blocks', 'mini_batch', 'qps', 'avg_ms', 'p99_ms']
-    row = dict(stem=os.environ['QUIVER_AE_STEM'], num_blocks=0, mini_batch=0,
+    row = dict(stem=os.environ['GPIPEANN_AE_STEM'], num_blocks=0, mini_batch=0,
                qps=100, avg_ms=1, p99_ms=2)
     row[axis] = value
     empty = not path.exists() or not path.stat().st_size
@@ -48,7 +48,7 @@ for value in values:
 
 class RecoveryTests(unittest.TestCase):
     def test_csv_recovery_preserves_other_results(self):
-        with tempfile.TemporaryDirectory(prefix='quiver-csv-recovery-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='gpipeann-csv-recovery-') as tmp:
             root = Path(tmp)
             metrics = root / 'metrics.csv'
             metrics.write_text('stem,num_blocks,qps\nother,99,100\n')
@@ -71,7 +71,7 @@ class RecoveryTests(unittest.TestCase):
             self.assertIn('case,1', archived[0].read_text())
 
     def run_case(self, mode='permanent', axis='--num-blocks-list', rc='7', debug=False, retries=2):
-        with tempfile.TemporaryDirectory(prefix='quiver-recovery-test-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='gpipeann-recovery-test-') as tmp:
             root = Path(tmp)
             mock = root / 'mock_search'
             mock.write_text(MOCK)
@@ -158,7 +158,7 @@ run_search "$OUT/next.log" "$MOCK" --num-blocks-list 4
         self.run_case(retries=0)
 
     def test_run_all_continues_and_preserves_unpublished(self):
-        with tempfile.TemporaryDirectory(prefix='quiver-run-all-test-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='gpipeann-run-all-test-') as tmp:
             root = Path(tmp)
             scripts = root / 'ae/scripts'
             scripts.mkdir(parents=True)
@@ -206,14 +206,14 @@ raise SystemExit(1 if source.name == 'e2e' else 0)
             self.assertIn('Unpublished results retained:', result.stderr)
 
     def test_real_partial_plot(self):
-        with tempfile.TemporaryDirectory(prefix='quiver-partial-plot-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='gpipeann-partial-plot-') as tmp:
             root = Path(tmp)
             source = root / 'e2e'
             source.mkdir()
             (source / 'failed_points.tsv').write_text('case\tnum_blocks\t972\t7\t3\n')
             (source / 'metrics.csv').write_text(
                 'stem,variant,system,dataset,ef,target_recall,num_blocks,mini_batch,queries_per_block,pipe_width,qps,avg_ms,p50_ms,p90_ms,p99_ms,p999_ms,max_ms,latency_kind\n'
-                'case,,Quiver,deep1b,145,0.96,864,0,3,2,30000,8,8,9,10,11,12,QueryLatency(ms)\n')
+                'case,,GPipeANN,deep1b,145,0.96,864,0,3,2,30000,8,8,9,10,11,12,QueryLatency(ms)\n')
             result = subprocess.run(['python3', str(SCRIPTS / 'plot_all.py'), str(source), '-o', str(root / 'plots')],
                                     capture_output=True, text=True, timeout=45)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

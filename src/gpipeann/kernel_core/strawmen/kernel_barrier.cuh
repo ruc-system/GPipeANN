@@ -7,7 +7,7 @@
 // It is structurally identical to kernel_qi.cuh (Q-interleave persistent kernel
 // with StreamingDispatch) EXCEPT the scheduler loop:
 //
-//   - Quiver scheduler  : event-driven (tid0 picks ANY slot whose lane 0 is
+//   - GPipeANN scheduler  : event-driven (tid0 picks ANY slot whose lane 0 is
 //                         IO_READY -> __syncthreads -> all 128 threads serve
 //                         that one slot's hop). Slots make hop-progress
 //                         independently, no cross-slot barrier.
@@ -33,14 +33,14 @@
 // being ablated is the scheduling discipline.
 //
 // ONLY the StreamingDispatch instantiation is supported here -- the strawman
-// is meant to be compared against Quiver's StreamingDispatch baseline.
+// is meant to be compared against GPipeANN's StreamingDispatch baseline.
 // ============================================================================
 
 #include "../kernel_helpers.cuh"
 #include "../inkernel_nav.cuh"
 #include "../policies/dispatch.cuh"
 
-namespace quiver {
+namespace gpipeann {
 namespace strawmen {
 
 constexpr int BARRIER_MAX_Q = 8;
@@ -51,7 +51,7 @@ __global__ void persistent_search_kernel_barrier(PersistentKernelArgs args)
     static_assert(Dispatch::is_persistent,
                   "Strawman barrier only meaningful with StreamingDispatch (the "
                   "ablation isolates 'per-hop barrier' variable while keeping "
-                  "the streaming admission protocol identical to Quiver).");
+                  "the streaming admission protocol identical to GPipeANN).");
 
     extern __shared__ uint8_t shm_pool[];
     const int tid = threadIdx.x;
@@ -416,4 +416,4 @@ __global__ void persistent_search_kernel_barrier(PersistentKernelArgs args)
 }
 
 }  // namespace strawmen
-}  // namespace quiver
+}  // namespace gpipeann

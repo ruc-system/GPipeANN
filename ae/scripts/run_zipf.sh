@@ -7,7 +7,7 @@ source "${DIR}/common.sh"
 source "${DIR}/paper_knobs.sh"
 apply_paper_knobs
 
-require_bin quiver_search
+require_bin gpipeann_search
 require_bin flashanns_search
 require_bin gustann_search
 ae_lock
@@ -29,7 +29,7 @@ ZIPF_MAX_EF="${ZIPF_MAX_EF:-95}"
 REPEAT_ZIPF="${ZIPF_REPEAT:-20}"
 ZIPF_NBS="${ZIPF_NUM_BLOCKS_LIST:-108,216,324,432,540,648,756,864,972,1080}"
 ZIPF_MBS="${ZIPF_MINI_BATCH_LIST:-16,24,32,48,64,96,128,192}"
-export QUIVER_AE_TARGET_RECALL_OVERRIDE=0.90
+export GPIPEANN_AE_TARGET_RECALL_OVERRIDE=0.90
 
 run_search "${OUT}/flashanns_sift1b_zipf_pw2.log" \
   "${BIN_DIR}/bin/flashanns_search" --index-dir "${INDEX_DIR}" \
@@ -48,22 +48,22 @@ run_search "${OUT}/gustann_sift1b_zipf_pw1.log" \
   --runner-contexts "${RUNNER_CONTEXTS}" --ssd-list-file "${SSD_LIST}" \
   --mini-batch-list "${ZIPF_MBS}"
 
-run_search "${OUT}/quiver_sift1b_zipf_q1_pw2.log" \
-  "${BIN_DIR}/bin/quiver_search" --index-dir "${INDEX_DIR}" \
+run_search "${OUT}/gpipeann_sift1b_zipf_q1_pw2.log" \
+  "${BIN_DIR}/bin/gpipeann_search" --index-dir "${INDEX_DIR}" \
   --query "${ZIPF_QUERY}" --ground-truth "${ZIPF_GT}" --data-type uint8 \
   --topk "${TOPK}" --ef-search "${ZIPF_MAX_EF}" \
   --query-ef-csv "${QUERY_EF_CSV}" --repeat "${REPEAT_ZIPF}" \
   --pipe-width 2 --queries-per-block 1 --poll-threads "${POLL_THREADS}" \
   --early-exit-policy none --ssd-list-file "${SSD_LIST}" \
-  --num-blocks-list "${QUIVER_LOWLAT_NB}"
+  --num-blocks-list "${GPIPEANN_LOWLAT_NB}"
 
-run_search "${OUT}/quiver_sift1b_zipf_q2_pw2.log" \
-  "${BIN_DIR}/bin/quiver_search" --index-dir "${INDEX_DIR}" \
+run_search "${OUT}/gpipeann_sift1b_zipf_q2_pw2.log" \
+  "${BIN_DIR}/bin/gpipeann_search" --index-dir "${INDEX_DIR}" \
   --query "${ZIPF_QUERY}" --ground-truth "${ZIPF_GT}" --data-type uint8 \
   --topk "${TOPK}" --ef-search "${ZIPF_MAX_EF}" \
   --query-ef-csv "${QUERY_EF_CSV}" --repeat "${REPEAT_ZIPF}" \
   --pipe-width 2 --queries-per-block 2 --poll-threads "${POLL_THREADS}" \
   --early-exit-policy none --ssd-list-file "${SSD_LIST}" \
-  --num-blocks-list "${QUIVER_MID_NB}"
+  --num-blocks-list "${GPIPEANN_MID_NB}"
 
 echo "DONE ${OUT}"

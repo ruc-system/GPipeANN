@@ -22,23 +22,23 @@ ensure_cmake_tree() {
   cmake -S "${ROOT}" -B "${build_dir}" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_CUDA_ARCHITECTURES="${CMAKE_CUDA_ARCHITECTURES:-80}" \
-    -DQUIVER_ENABLE_SPDK=ON \
+    -DGPIPEANN_ENABLE_SPDK=ON \
     "$@"
 }
 
 echo "===== production ${BIN_DIR} ====="
 ensure_cmake_tree "${BIN_DIR}" \
-  -DQUIVER_ENABLE_LIGHT_BREAKDOWN=OFF \
-  -DQUIVER_BUILD_STRAWMEN=OFF
+  -DGPIPEANN_ENABLE_LIGHT_BREAKDOWN=OFF \
+  -DGPIPEANN_BUILD_STRAWMEN=OFF
 cmake --build "${BIN_DIR}" -j"${nproc_j}" --target \
-  quiver_search flashanns_search gustann_search spdk_write
+  gpipeann_search flashanns_search gustann_search spdk_write
 
 echo "===== instrumented ${INSTRUMENTED_BIN_DIR} ====="
 ensure_cmake_tree "${INSTRUMENTED_BIN_DIR}" \
-  -DQUIVER_ENABLE_LIGHT_BREAKDOWN=ON \
-  -DQUIVER_BUILD_STRAWMEN=ON
+  -DGPIPEANN_ENABLE_LIGHT_BREAKDOWN=ON \
+  -DGPIPEANN_BUILD_STRAWMEN=ON
 cmake --build "${INSTRUMENTED_BIN_DIR}" -j"${nproc_j}" --target \
-  quiver_search flashanns_search gustann_search strawmen_pq_in_smem
+  gpipeann_search flashanns_search gustann_search strawmen_pq_in_smem
 
 if [[ "${SKIP_FUSIONANNS:-0}" == 1 ]]; then
   echo "skip FusionANNS (SKIP_FUSIONANNS=1)"
@@ -48,13 +48,13 @@ else
 fi
 
 missing=0
-for b in quiver_search flashanns_search gustann_search spdk_write; do
+for b in gpipeann_search flashanns_search gustann_search spdk_write; do
   if [[ ! -x "${BIN_DIR}/bin/${b}" ]]; then
     echo "missing ${BIN_DIR}/bin/${b}" >&2
     missing=1
   fi
 done
-for b in quiver_search flashanns_search gustann_search strawmen_pq_in_smem; do
+for b in gpipeann_search flashanns_search gustann_search strawmen_pq_in_smem; do
   if [[ ! -x "${INSTRUMENTED_BIN_DIR}/bin/${b}" ]]; then
     echo "missing ${INSTRUMENTED_BIN_DIR}/bin/${b}" >&2
     missing=1

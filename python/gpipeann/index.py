@@ -12,8 +12,8 @@ import numpy as np
 import numpy.typing as npt
 
 
-class QuiverError(RuntimeError):
-    """Raised when Quiver cannot execute or return valid search results."""
+class GPipeANNError(RuntimeError):
+    """Raised when GPipeANN cannot execute or return valid search results."""
 
 
 _DATA_TYPES = {
@@ -24,12 +24,12 @@ _DATA_TYPES = {
 }
 
 
-class IndexQuiver:
-    """Search a Quiver index with NumPy arrays.
+class IndexGPipeANN:
+    """Search a GPipeANN index with NumPy arrays.
 
-    The Python API invokes the compiled ``quiver_search`` engine. Passing more
-    than one PCI address enables Quiver's striped multi-SSD SPDK backend.
-    Without ``ssds`` or ``ssd_list_file``, Quiver uses its memory backend.
+    The Python API invokes the compiled ``gpipeann_search`` engine. Passing more
+    than one PCI address enables GPipeANN's striped multi-SSD SPDK backend.
+    Without ``ssds`` or ``ssd_list_file``, GPipeANN uses its memory backend.
     """
 
     def __init__(
@@ -121,7 +121,7 @@ class IndexQuiver:
             raise ValueError("queries must be a non-empty 1D or 2D array")
         array = np.ascontiguousarray(array, dtype=self._numpy_dtype)
 
-        with tempfile.TemporaryDirectory(prefix="quiver-python-") as temp_dir:
+        with tempfile.TemporaryDirectory(prefix="gpipeann-python-") as temp_dir:
             work = Path(temp_dir)
             query_path = work / f"queries{self._query_suffix}"
             result_prefix = work / "result"
@@ -175,13 +175,13 @@ class IndexQuiver:
                     timeout=timeout,
                 )
             except subprocess.TimeoutExpired as error:
-                raise QuiverError(
-                    f"quiver_search exceeded the {timeout:g} second timeout"
+                raise GPipeANNError(
+                    f"{self.binary.name} exceeded the {timeout:g} second timeout"
                 ) from error
             if completed.returncode != 0:
                 detail = completed.stderr.strip() or completed.stdout.strip()
-                raise QuiverError(
-                    f"quiver_search exited with code {completed.returncode}: {detail}"
+                raise GPipeANNError(
+                    f"{self.binary.name} exited with code {completed.returncode}: {detail}"
                 )
 
             ids = self._read_bin(result_prefix.with_name("result_ids.bin"), np.int32)
@@ -190,7 +190,7 @@ class IndexQuiver:
             )
             expected = (array.shape[0], topk)
             if ids.shape != expected or distances.shape != expected:
-                raise QuiverError(
+                raise GPipeANNError(
                     f"unexpected result shape: ids={ids.shape}, "
                     f"distances={distances.shape}, expected={expected}"
                 )
@@ -214,17 +214,17 @@ class IndexQuiver:
     @staticmethod
     def _read_bin(path: Path, dtype: npt.DTypeLike) -> npt.NDArray[np.generic]:
         if not path.is_file():
-            raise QuiverError(f"quiver_search did not create {path.name}")
+            raise GPipeANNError(f"{self.binary.name} did not create {path.name}")
         with path.open("rb") as source:
             header = source.read(8)
             if len(header) != 8:
-                raise QuiverError(f"invalid result header in {path}")
+                raise GPipeANNError(f"invalid result header in {path}")
             count, dims = struct.unpack("<ii", header)
             if count < 0 or dims < 0:
-                raise QuiverError(f"invalid result dimensions in {path}")
+                raise GPipeANNError(f"invalid result dimensions in {path}")
             values = np.fromfile(source, dtype=np.dtype(dtype).newbyteorder("<"))
         if values.size != count * dims:
-            raise QuiverError(f"truncated result data in {path}")
+            raise GPipeANNError(f"truncated result data in {path}")
         return values.reshape(count, dims)
 
     @staticmethod
@@ -239,15 +239,15 @@ class IndexQuiver:
         candidates: list[Path] = []
         if binary:
             candidates.append(Path(binary).expanduser())
-        elif os.environ.get("QUIVER_BINARY"):
-            candidates.append(Path(os.environ["QUIVER_BINARY"]).expanduser())
+        elif os.environ.get("GPIPEANN_BINARY"):
+            candidates.append(Path(os.environ["GPIPEANN_BINARY"]).expanduser())
         else:
-            executable = shutil.which("quiver_search")
+            executable = shutil.which("gpipeann_search")
             if executable:
                 candidates.append(Path(executable))
             root = Path(__file__).resolve().parents[2]
             candidates.extend(
-                [root / "build" / "bin" / "quiver_search", root / "bin" / "quiver_search"]
+                [root / "build" / "bin" / "gpipeann_search", root / "bin" / "gpipeann_search"]
             )
 
         for candidate in candidates:
@@ -255,4 +255,4 @@ class IndexQuiver:
             if resolved.is_file() and os.access(resolved, os.X_OK):
                 return resolved
         searched = ", ".join(str(path) for path in candidates) or "PATH"
-        raise QuiverError(f"quiver_search executable not found (searched: {searched})")
+        raise GPipeANNError(f"GPipeANN search executable not found (searched: {searched})")

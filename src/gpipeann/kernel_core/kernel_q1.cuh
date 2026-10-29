@@ -1,7 +1,7 @@
 #pragma once
 
-// Quiver Q=1 fast-path persistent kernel.
-// Extracted from quiver/kernel.cuh (Phase 1 refactor).
+// GPipeANN Q=1 fast-path persistent kernel.
+// Extracted from gpipeann/kernel.cuh (Phase 1 refactor).
 // Phase 3.1a: Dispatch is now a template policy parameter.
 // Behavior is unchanged for StreamingDispatch (the only instantiation used today).
 
@@ -10,7 +10,7 @@
 #include "inkernel_nav.cuh"
 #include "pq_lut.cuh"
 
-namespace quiver {
+namespace gpipeann {
 
 // ================================================================
 // Persistent kernel: one launch per search batch.
@@ -24,8 +24,8 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
     extern __shared__ uint8_t shm_pool[];
     const int tid = threadIdx.x;
     const int bid = blockIdx.x;
-#ifdef QUIVER_FIXED_PIPE_WIDTH
-    constexpr int W = QUIVER_FIXED_PIPE_WIDTH;
+#ifdef GPIPEANN_FIXED_PIPE_WIDTH
+    constexpr int W = GPIPEANN_FIXED_PIPE_WIDTH;
 #else
     const int W = args.pipe_w;
 #endif
@@ -49,7 +49,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
     __shared__ int     s_stop_requested;
     __shared__ int     s_step_recall_reached;
     __shared__ int     s_drain_done;
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     __shared__ int64_t breakdown_lane_issue_ts[16];
     __shared__ int64_t breakdown_wait_start_ns;
     __shared__ int64_t breakdown_pure_wait_ns;
@@ -69,7 +69,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
     uint8_t*   my_buf   = args.comm->buffers
                         + (long)bid * W * args.io_bytes;
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     if (tid == 0) {
         for (int w = 0; w < 16; ++w) breakdown_lane_issue_ts[w] = 0;
         breakdown_wait_start_ns = 0;
@@ -84,7 +84,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
     // StreamingDispatch: atomicAdd + spin-wait on feed_count (streaming admission).
     // ============================================================
     while (true) {
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
         int64_t probe_t_before_sched = globaltimer_ns();
 #endif
         // tid 0 writes qid (or -1 for exit) into s_query_id; broadcast via __syncthreads.
@@ -99,10 +99,10 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
         if (qid == -1) return;  // Dispatch signaled terminate
         const int query_ef = PerQueryEf ? s_query_ef : args.ef_search;
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
-        const int breakdown_sample_idx = quiver_breakdown_sample_index(
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
+        const int breakdown_sample_idx = gpipeann_breakdown_sample_index(
             qid, args.total_queries, args.breakdown_sample_count);
-        QuiverLightBreakdownTrace* breakdown_trace =
+        GPipeANNLightBreakdownTrace* breakdown_trace =
             breakdown_sample_idx >= 0 && args.d_breakdown_traces != nullptr
                 ? &args.d_breakdown_traces[breakdown_sample_idx]
                 : nullptr;
@@ -122,10 +122,10 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
         }
 #endif
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
         int64_t probe_t_query_start = globaltimer_ns();
         const bool do_trace = (qid < args.probe_max_traces);
-        QuiverProbeQueryTrace* my_trace = do_trace
+        GPipeANNProbeQueryTrace* my_trace = do_trace
             ? &args.d_probe_traces[qid] : nullptr;
 #endif
 
@@ -179,14 +179,14 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
             entry_from_nav = mapped;
         }
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
         int64_t probe_t_nav_done = globaltimer_ns();
 #endif
 
         init_slot_pq_lut(args.pq_data, qdata, my_pq);
         __syncthreads();
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
         int64_t probe_t_pq_done = globaltimer_ns();
 #endif
 
@@ -211,7 +211,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
             entry = args.enter_point;
         }
         if (tid == 0) {
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
             if (breakdown_trace != nullptr)
                 breakdown_lane_issue_ts[0] = globaltimer_ns();
 #endif
@@ -219,7 +219,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
         }
         __syncthreads();
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
         int64_t probe_t_boot_issue = globaltimer_ns();
         int probe_boot_spins = 0;
 #endif
@@ -233,16 +233,16 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
             const int boot_ready = s_ready_w;
             __syncthreads();
             if (boot_ready == 0) break;
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
             if (tid == 0 && breakdown_trace != nullptr &&
                 breakdown_wait_start_ns == 0)
                 breakdown_wait_start_ns = globaltimer_ns();
 #endif
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
             if (tid == 0) probe_boot_spins++;
 #endif
         }
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         int64_t breakdown_compute_start_ns = 0;
         if (tid == 0 && breakdown_trace != nullptr) {
             const int64_t now = globaltimer_ns();
@@ -250,7 +250,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                 breakdown_pure_wait_ns += now - breakdown_wait_start_ns;
                 breakdown_wait_start_ns = 0;
             }
-            quiver_breakdown_add_ssd_wait_interval(
+            gpipeann_breakdown_add_ssd_wait_interval(
                 breakdown_trace, breakdown_lane_issue_ts[0], now);
             breakdown_lane_issue_ts[0] = 0;
             breakdown_compute_start_ns = now;
@@ -258,13 +258,13 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
 #endif
         __threadfence_system();
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
         int64_t probe_t_boot_ready = globaltimer_ns();
 #endif
 
         if (tid == 0) my_ctl[0].status = IO_IDLE;
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
         int64_t probe_t_boot_pq_done = 0;
 #endif
         persistent_merge_data(
@@ -275,12 +275,12 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
             my_nid, my_ndist, my_ctx,
             mv_pos, mv_id, mv_dist, tmp_id, tmp_dist,
             node_scratch
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
             , &probe_t_boot_pq_done
 #endif
             );
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
         int64_t probe_t_boot_merge_done = globaltimer_ns();
 #endif
 
@@ -377,14 +377,14 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
         }
         __syncthreads();
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         if (tid == 0 && breakdown_trace != nullptr) {
-            quiver_breakdown_add_compute_interval(
+            gpipeann_breakdown_add_compute_interval(
                 breakdown_trace, breakdown_compute_start_ns, globaltimer_ns());
         }
 #endif
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
         int64_t probe_t_boot_compute_done = globaltimer_ns();
         int probe_hop_count = 0;
 #endif
@@ -392,7 +392,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
         if (tid == 0 && !s_stop_requested) {
             for (int w = 0; w < W; w++) {
                 if (lane_req[w] != -1) {
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
                     if (breakdown_trace != nullptr)
                         breakdown_lane_issue_ts[w] = globaltimer_ns();
 #endif
@@ -402,12 +402,12 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
         }
         __syncthreads();
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
         int64_t probe_t_boot_all_issued = globaltimer_ns();
 #endif
 
         // ---- PIPE LOOP: process all ready lanes per iteration ----
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
         int probe_spin_since_last_ready = 0;
 #endif
         while (!s_stop_requested) {
@@ -430,12 +430,12 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                         break;
                     }
                     if (s_ready_w != -1) break;  // found ready lane
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
                     if (breakdown_trace != nullptr &&
                         breakdown_wait_start_ns == 0)
                         breakdown_wait_start_ns = globaltimer_ns();
 #endif
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
                     probe_spin_since_last_ready++;
 #endif
                 }
@@ -451,7 +451,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
 
             if (s_ready_w == -2) break;
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
             int64_t breakdown_ready_ns = 0;
             int64_t breakdown_pipe_compute_start_ns = 0;
             if (tid == 0 && breakdown_trace != nullptr) {
@@ -464,7 +464,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                 for (int w = 0; w < W; ++w) {
                     if (snap_st[w] == IO_READY &&
                         breakdown_lane_issue_ts[w] > 0) {
-                        quiver_breakdown_add_ssd_wait_interval(
+                        gpipeann_breakdown_add_ssd_wait_interval(
                             breakdown_trace, breakdown_lane_issue_ts[w],
                             breakdown_ready_ns);
                         breakdown_lane_issue_ts[w] = 0;
@@ -476,7 +476,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
             }
 #endif
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
             int64_t probe_t_ready_found = globaltimer_ns();
 #endif
 
@@ -484,7 +484,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
             // before reading. Required once per iteration (covers all ready lanes).
             __threadfence_system();
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
             int64_t probe_t_compute_start = globaltimer_ns();
             int probe_ready_count = 0;
 #endif
@@ -495,7 +495,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
             for (int w = 0; w < W; w++) {
                 if (snap_st[w] != IO_READY) continue;
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
                 if (tid == 0) probe_ready_count++;
 #endif
 
@@ -509,7 +509,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                     my_nid, my_ndist, my_ctx,
                     mv_pos, mv_id, mv_dist, tmp_id, tmp_dist,
                     node_scratch
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
                     , nullptr
 #endif
                     );
@@ -610,15 +610,15 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                 break;
             }
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
             if (tid == 0 && breakdown_trace != nullptr) {
-                quiver_breakdown_add_compute_interval(
+                gpipeann_breakdown_add_compute_interval(
                     breakdown_trace, breakdown_pipe_compute_start_ns,
                     globaltimer_ns());
             }
 #endif
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
             int64_t probe_t_compute_done = globaltimer_ns();
 #endif
 
@@ -641,7 +641,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
             if (tid == 0) {
                 for (int w = 0; w < W; w++) {
                     if (snap_st[w] == IO_READY && lane_req[w] != -1) {
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
                         if (breakdown_trace != nullptr)
                             breakdown_lane_issue_ts[w] = globaltimer_ns();
 #endif
@@ -649,7 +649,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
                     } else if (snap_st[w] != IO_READY &&
                                my_ctl[w].status == IO_IDLE &&
                                lane_req[w] != -1) {
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
                         if (breakdown_trace != nullptr)
                             breakdown_lane_issue_ts[w] = globaltimer_ns();
 #endif
@@ -659,10 +659,10 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
             }
             __syncthreads();
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
             if (tid == 0) {
                 if (do_trace && probe_hop_count < PROBE_MAX_HOPS) {
-                    QuiverProbeHop& h = my_trace->hops[probe_hop_count];
+                    GPipeANNProbeHop& h = my_trace->hops[probe_hop_count];
                     h.ready_found_ts = probe_t_ready_found;
                     h.compute_start_ts = probe_t_compute_start;
                     h.compute_done_ts = probe_t_compute_done;
@@ -675,7 +675,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
 #endif
         } // pipe loop
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
         int64_t probe_t_pipe_done = globaltimer_ns();
 #endif
 
@@ -708,7 +708,7 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
             int new_done = atomicAdd(args.d_queries_done, 1) + 1;
             *(volatile int32_t*)&args.comm->queries_completed = new_done;
             __threadfence_system();
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
             if (breakdown_trace != nullptr) {
                 const int64_t done = globaltimer_ns();
                 breakdown_trace->query_done_ns = done;
@@ -727,13 +727,13 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
             }
 #endif
         }
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
         int64_t probe_t_query_done = 0;
         if (tid == 0) probe_t_query_done = globaltimer_ns();
 #endif
         __syncthreads();
 
-#ifdef QUIVER_LATENCY_PROBE
+#ifdef GPIPEANN_LATENCY_PROBE
         if (tid == 0 && do_trace) {
             my_trace->query_id = qid;
             my_trace->num_hops = min(probe_hop_count, PROBE_MAX_HOPS);
@@ -762,4 +762,4 @@ __global__ void persistent_search_kernel(PersistentKernelArgs args)
     } // query loop
 }
 
-} // namespace quiver
+} // namespace gpipeann

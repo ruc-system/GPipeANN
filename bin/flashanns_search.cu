@@ -171,7 +171,7 @@ int main(int argc, char** argv) {
 
     std::shared_ptr<shared::IndexLoader> loader;
     if (!setup.ssd_lists.empty()) {
-#if QUIVER_ENABLE_SPDK
+#if GPIPEANN_ENABLE_SPDK
       spdlog::info("Using SPDK backend (submit_queue_capacity={} "
                    "task_context_count={} runner_io_context_count={})",
                    spdk_options.submit_queue_capacity,

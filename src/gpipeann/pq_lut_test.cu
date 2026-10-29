@@ -10,7 +10,7 @@ __global__ void reference_lut(shared::PQSearchData p, float* queries) {
 }
 
 __global__ void optimized_lut(shared::PQSearchData p, float* queries) {
-    quiver::init_slot_pq_lut(&p, queries + (size_t)blockIdx.x * p.dim,
+    gpipeann::init_slot_pq_lut(&p, queries + (size_t)blockIdx.x * p.dim,
         p.pq_dists + (size_t)blockIdx.x * p.num_chunks * p.num_pivots);
 }
 

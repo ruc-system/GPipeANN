@@ -108,7 +108,7 @@ def check_results(prefix, vectors, queries, repeat, topk):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, required=True)
-    parser.add_argument("--engine", choices=["quiver", "flashanns", "gustann"], default="quiver")
+    parser.add_argument("--engine", choices=["gpipeann", "flashanns", "gustann"], default="gpipeann")
     parser.add_argument("--data-type", choices=["uint8", "int8", "float"], required=True)
     parser.add_argument("--dimensions", type=int, choices=[32, 1536], default=32)
     parser.add_argument("--node-count", type=int, choices=[32, 64], default=32)
@@ -135,7 +135,7 @@ def main():
         from contextlib import nullcontext
         context = nullcontext(temporary)
     else:
-        context = tempfile.TemporaryDirectory(prefix="quiver-memory-search-")
+        context = tempfile.TemporaryDirectory(prefix="gpipeann-memory-search-")
     with context as temporary:
         root = Path(temporary)
         vectors, queries = fixture(root, args.data_type, args.dimensions, args.entry_query,
@@ -155,7 +155,7 @@ def main():
             f"{i},{args.node_count + i * 4}\n" for i in range(len(queries))))
         reference = None
         failures = []
-        variants = [(q, 2) for q in [1, 2, 4]] if args.engine == "quiver" else [(1, w) for w in [1, 2]]
+        variants = [(q, 2) for q in [1, 2, 4]] if args.engine == "gpipeann" else [(1, w) for w in [1, 2]]
         for q, width in variants:
             label = f"{args.engine} Q={q} W={width}"
             prefix = root / f"q{q}-w{width}"
@@ -168,7 +168,7 @@ def main():
                 command += ["--mini-batch", "2", "--worker-threads", "1", "--runner-contexts", "2"]
             else:
                 command += ["--num-blocks", "2", "--poll-threads", "1"]
-            if args.engine == "quiver":
+            if args.engine == "gpipeann":
                 command += ["--queries-per-block", str(q), "--early-exit-policy", "none",
                             "--result-prefix", str(prefix)]
             if args.per_query_ef:
@@ -177,7 +177,7 @@ def main():
                 command += ["--memory-index-file", str(override)]
             # Ignore machine-local tuning so every invocation uses the same setup.
             env = {key: value for key, value in os.environ.items()
-                   if not key.startswith(("QUIVER_", "SPDK_", "CPU_POLL_"))}
+                   if not key.startswith(("GPIPEANN_", "SPDK_", "CPU_POLL_"))}
             log = prefix.with_suffix(".log")
             try:
                 result = subprocess.run(command, env=env, capture_output=True,
@@ -185,7 +185,7 @@ def main():
                 log.write_text(shlex.join(command) + "\n" + result.stdout + result.stderr)
                 if result.returncode:
                     raise AssertionError(f"Search exited with status {result.returncode}")
-                if args.engine == "quiver":
+                if args.engine == "gpipeann":
                     distances = check_results(prefix, vectors, queries, 3, args.topk)
                 else:
                     recall = re.search(rf"Recall @ {args.topk}:\s*([0-9.]+)", result.stdout)

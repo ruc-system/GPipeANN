@@ -51,12 +51,12 @@ std::shared_ptr<spdk_wrapper::SpdkWrapper> get_or_create_shared_spdk_wrapper(
 }
 
 bool spdk_diag_enabled_from_env() {
-  const char* env = std::getenv("QUIVER_SPDK_DIAG");
+  const char* env = std::getenv("GPIPEANN_SPDK_DIAG");
   return env != nullptr && std::atoi(env) != 0;
 }
 
 int hot_sample_interval_ms_from_env() {
-  const char* env = std::getenv("QUIVER_SPDK_HOT_SAMPLE_MS");
+  const char* env = std::getenv("GPIPEANN_SPDK_HOT_SAMPLE_MS");
   if (env == nullptr) {
     return 100;
   }
@@ -64,7 +64,7 @@ int hot_sample_interval_ms_from_env() {
 }
 
 int spdk_max_retry_from_env() {
-  const char* env = std::getenv("QUIVER_SPDK_MAX_RETRY");
+  const char* env = std::getenv("GPIPEANN_SPDK_MAX_RETRY");
   if (env == nullptr) {
     return 256;
   }

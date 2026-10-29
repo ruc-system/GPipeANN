@@ -83,7 +83,7 @@ struct PersistentKernelArgs {
 #ifdef FLASHANNS_LATENCY_PROBE
     struct FlashProbeQueryTrace* d_probe_traces;  // [num_queries], per-query timestamp trace
 #endif
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     struct FlashLightBreakdownTrace* d_breakdown_traces;  // [breakdown_sample_count]
     struct FlashBreakdownCtaWindowTrace* d_breakdown_cta_windows;  // [batch_size]
     int breakdown_sample_count;
@@ -99,7 +99,7 @@ struct PersistentKernelArgs {
 // Boot phase: absolute timestamps at stage boundaries.
 // Pipe phase: accumulated durations (ns) across all hops.
 // ================================================================
-#if defined(FLASHANNS_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
+#if defined(FLASHANNS_LATENCY_PROBE) || defined(GPIPEANN_LIGHT_BREAKDOWN)
 
 __device__ __forceinline__ unsigned long long globaltimer_ns() {
     unsigned long long t;
@@ -144,7 +144,7 @@ struct FlashProbeQueryTrace {
 
 #endif // FLASHANNS_LATENCY_PROBE
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
 static constexpr int FLASH_BREAKDOWN_MAX_COMPUTE_INTERVALS = 128;
 static constexpr int FLASH_BREAKDOWN_MAX_WAIT_INTERVALS = 256;
 

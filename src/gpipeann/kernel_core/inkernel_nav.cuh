@@ -45,7 +45,7 @@
 
 #include "../../shared/common/gpu_primitives.cuh"
 
-namespace quiver {
+namespace gpipeann {
 
 // Matches flashanns/shared/index/nav_kernel.cuh constants.
 constexpr int kInkernelNavL = 4;
@@ -200,4 +200,4 @@ __device__ __forceinline__ int inkernel_nav_entry(
     return nav_mapping[raw];
 }
 
-}  // namespace quiver
+}  // namespace gpipeann

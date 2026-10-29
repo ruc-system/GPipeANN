@@ -8,7 +8,7 @@
 #include "shared/common/layout.hpp"
 #include "shared/common/logging.hpp"
 #include "shared/common/runtime.hpp"
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
 #include "../shared/common/light_breakdown.hpp"
 #endif
 #include "shared/index/nav_kernel.cuh"
@@ -44,11 +44,11 @@ static __global__ void record_probe_kernel_start(int64_t *out) {
 
 namespace {
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
 double breakdown_cta_window_seconds_from_env() {
   const char *env = std::getenv("GUSTANN_BREAKDOWN_CTA_WINDOW_US");
   if (env == nullptr || env[0] == '\0') {
-    env = std::getenv("QUIVER_BREAKDOWN_CTA_WINDOW_US");
+    env = std::getenv("GPIPEANN_BREAKDOWN_CTA_WINDOW_US");
   }
   if (env == nullptr || env[0] == '\0') {
     return 1000.0e-6;
@@ -79,7 +79,7 @@ void destroy_stream_noexcept(cudaStream_t &stream) noexcept {
   }
 }
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
 void destroy_event_noexcept(cudaEvent_t &event) noexcept {
   if (event != nullptr) {
     cudaEventDestroy(event);
@@ -155,7 +155,7 @@ TaskRunner::TaskRunner(int _tid, int _cid_base, int _mini_batch, int _num_dims,
   time_gpu_issue = 0;
   time_ssd_issue = 0;
   time_fin_issue = 0;
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   time_h2d = 0;
   time_d2h = 0;
   time_resumption = 0;
@@ -165,7 +165,7 @@ TaskRunner::TaskRunner(int _tid, int _cid_base, int _mini_batch, int _num_dims,
 
   stream_offset_ = _cid_base * mini_batch;
   CHECK_CUDA(cudaStreamCreate(&stream_));
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   CHECK_CUDA(cudaEventCreate(&h2d_start_event_));
   CHECK_CUDA(cudaEventCreate(&h2d_done_event_));
   CHECK_CUDA(cudaEventCreate(&d2h_start_event_));
@@ -226,7 +226,7 @@ TaskRunner::~TaskRunner() { cleanup(); }
 
 void TaskRunner::cleanup() noexcept {
   destroy_stream_noexcept(stream_);
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   destroy_event_noexcept(h2d_start_event_);
   destroy_event_noexcept(h2d_done_event_);
   destroy_event_noexcept(d2h_start_event_);
@@ -296,7 +296,7 @@ void TaskRunner::init_query(const float *qdata, int _qcnt, int *_nns,
     pending_batch_io_traces_[w] = {};
 #endif
   }
-#if defined(GUSTANN_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
+#if defined(GUSTANN_LATENCY_PROBE) || defined(GPIPEANN_LIGHT_BREAKDOWN)
   current_hop_index_ = 0;
   pending_hop_index_ = 0;
   pending_hop_wait_us_ = 0.0;
@@ -308,7 +308,7 @@ void TaskRunner::init_query(const float *qdata, int _qcnt, int *_nns,
   // batch's completion time is not charged to this batch's latency.
   CHECK_CUDA(cudaStreamSynchronize(stream_));
   batch_start_time = elapsed();
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   breakdown_batch_start_time_ = batch_start_time;
   breakdown_batch_h2d_time_ = 0.0;
   breakdown_batch_d2h_time_ = 0.0;
@@ -330,22 +330,22 @@ void TaskRunner::init_query(const float *qdata, int _qcnt, int *_nns,
                              sizeof(int) * mini_batch * GUSTANN_PIPE_W,
                              stream_));
 #endif
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   CHECK_CUDA(cudaEventRecord(h2d_start_event_, stream_));
 #endif
   CHECK_CUDA(cudaMemcpyAsync(d_qdata_, qdata, sizeof(float) * qcnt_ * num_dims,
                              cudaMemcpyHostToDevice, stream_));
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   CHECK_CUDA(cudaEventRecord(h2d_done_event_, stream_));
   h2d_event_pending_ = true;
 #endif
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   double launch_start = elapsed();
 #endif
   init_search<<<qcnt_, 64, 0, stream_>>>(d_qdata_, pq->get_device_ptr(),
                                          stream_offset_, num_dims);
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   double launch_elapsed = elapsed() - launch_start;
   time_kernel_launch += launch_elapsed;
   breakdown_batch_kernel_launch_time_ += launch_elapsed;
@@ -354,14 +354,14 @@ void TaskRunner::init_query(const float *qdata, int _qcnt, int *_nns,
   if (nav_graph) {
     int init_ef = std::min(ef_search, 5);
     int dim = nav_graph->data_len;
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     launch_start = elapsed();
 #endif
     shared::get_entry_kernel(data_type)<<<(qcnt_ + 1) / 2, 64, 0, stream_>>>(
         d_qdata_, nav_graph->data_dev, nav_graph->graph_dev, qcnt_,
         nav_graph->num_node, dim, nav_graph->max_m, init_ef, nav_graph->start,
         sub_lanes_[0].request, d_neighbors_id_, d_neighbors_dist_);
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     launch_elapsed = elapsed() - launch_start;
     time_kernel_launch += launch_elapsed;
     breakdown_batch_kernel_launch_time_ += launch_elapsed;
@@ -377,7 +377,7 @@ void TaskRunner::init_query(const float *qdata, int _qcnt, int *_nns,
   time_init_issue += elapsed();
 }
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
 void TaskRunner::set_breakdown_total_batches(int total_batches) {
   breakdown_total_batches_ = total_batches;
 }
@@ -476,7 +476,7 @@ void TaskRunner::record_breakdown_batch_sample(double done_time) {
   const int sample_count = std::min(
       breakdown_total_batches_,
       static_cast<int>(
-          shared::breakdown::QUIVER_LIGHT_BREAKDOWN_SAMPLE_BATCHES));
+          shared::breakdown::GPIPEANN_LIGHT_BREAKDOWN_SAMPLE_BATCHES));
   if (sample_count <= 0) {
     return;
   }
@@ -602,7 +602,7 @@ void TaskRunner::launch_merge_data(int w) {
 #ifdef GUSTANN_LATENCY_PROBE
   record_probe_kernel_start<<<1, 1, 0, stream_>>>(d_probe_kernel_start_);
 #endif
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   const double launch_start = elapsed();
 #endif
   if (d_query_ef_ != nullptr) {
@@ -641,7 +641,7 @@ void TaskRunner::launch_merge_data(int w) {
 #endif
                                      );
   }
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   const double launch_elapsed = elapsed() - launch_start;
   time_kernel_launch += launch_elapsed;
   breakdown_batch_kernel_launch_time_ += launch_elapsed;
@@ -651,7 +651,7 @@ void TaskRunner::launch_merge_data(int w) {
 template <class T>
 void TaskRunner::launch_visit_select(int w) {
   auto &sl = sub_lanes_[w];
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   const double launch_start = elapsed();
 #endif
   if (d_query_ef_ != nullptr) {
@@ -675,7 +675,7 @@ void TaskRunner::launch_visit_select(int w) {
 #endif
         );
   }
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   const double launch_elapsed = elapsed() - launch_start;
   time_kernel_launch += launch_elapsed;
   breakdown_batch_kernel_launch_time_ += launch_elapsed;
@@ -687,14 +687,14 @@ void TaskRunner::process_sublane_gpu(int w) {
   if (data_type == shared::UINT8) {
     launch_merge_data<uint8_t>(w);
 #ifdef NOFUSE_ABLATION
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     const double launch_start = elapsed();
 #endif
     visit_exact_dist_kernel<uint8_t><<<(qcnt_ + 1) / 2, 64, 0, stream_>>>(
         d_qdata_, sl.buffer, sl.request, num_dims, topk, d_nns_, d_distances_,
         d_found_cnt_, nodes_per_page_, static_cast<int>(io_bytes_), node_size_,
         data_size_, qcnt_);
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     const double launch_elapsed = elapsed() - launch_start;
     time_kernel_launch += launch_elapsed;
     breakdown_batch_kernel_launch_time_ += launch_elapsed;
@@ -705,14 +705,14 @@ void TaskRunner::process_sublane_gpu(int w) {
   } else if (data_type == shared::INT8) {
     launch_merge_data<int8_t>(w);
 #ifdef NOFUSE_ABLATION
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     const double launch_start = elapsed();
 #endif
     visit_exact_dist_kernel<int8_t><<<(qcnt_ + 1) / 2, 64, 0, stream_>>>(
         d_qdata_, sl.buffer, sl.request, num_dims, topk, d_nns_, d_distances_,
         d_found_cnt_, nodes_per_page_, static_cast<int>(io_bytes_), node_size_,
         data_size_, qcnt_);
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     const double launch_elapsed = elapsed() - launch_start;
     time_kernel_launch += launch_elapsed;
     breakdown_batch_kernel_launch_time_ += launch_elapsed;
@@ -723,14 +723,14 @@ void TaskRunner::process_sublane_gpu(int w) {
   } else if (data_type == shared::FLOAT) {
     launch_merge_data<float>(w);
 #ifdef NOFUSE_ABLATION
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     const double launch_start = elapsed();
 #endif
     visit_exact_dist_kernel<float><<<(qcnt_ + 1) / 2, 64, 0, stream_>>>(
         d_qdata_, sl.buffer, sl.request, num_dims, topk, d_nns_, d_distances_,
         d_found_cnt_, nodes_per_page_, static_cast<int>(io_bytes_), node_size_,
         data_size_, qcnt_);
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
     const double launch_elapsed = elapsed() - launch_start;
     time_kernel_launch += launch_elapsed;
     breakdown_batch_kernel_launch_time_ += launch_elapsed;
@@ -746,7 +746,7 @@ void TaskRunner::process_sublane_gpu(int w) {
 
 void TaskRunner::select_next_sublane(int w) {
   auto &sl = sub_lanes_[w];
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   const double launch_start = elapsed();
 #endif
   if (d_query_ef_ != nullptr) {
@@ -758,7 +758,7 @@ void TaskRunner::select_next_sublane(int w) {
         max_m0, ef_search, d_neighbors_id_, d_neighbors_dist_, d_ctx_,
         sl.request, qcnt_, nullptr);
   }
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   const double launch_elapsed = elapsed() - launch_start;
   time_kernel_launch += launch_elapsed;
   breakdown_batch_kernel_launch_time_ += launch_elapsed;
@@ -767,7 +767,7 @@ void TaskRunner::select_next_sublane(int w) {
 
 void TaskRunner::finish_query() {
   time_fin_issue -= elapsed();
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   CHECK_CUDA(cudaEventRecord(d2h_start_event_, stream_));
 #endif
   CHECK_CUDA(cudaMemcpyAsync(nns_, d_nns_, qcnt_ * topk * sizeof(int),
@@ -777,7 +777,7 @@ void TaskRunner::finish_query() {
                              cudaMemcpyDeviceToHost, stream_));
   CHECK_CUDA(cudaMemcpyAsync(found_cnt_, d_found_cnt_, qcnt_ * sizeof(int),
                              cudaMemcpyDeviceToHost, stream_));
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   CHECK_CUDA(cudaEventRecord(d2h_done_event_, stream_));
   d2h_event_pending_ = true;
 #endif
@@ -794,7 +794,7 @@ bool TaskRunner::update_state() {
   if (batch_finished_) {
     return true;
   }
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
   tick_breakdown_cta_window();
 #endif
   try {
@@ -802,7 +802,7 @@ bool TaskRunner::update_state() {
     case Q_INIT: {
       auto err = cudaStreamQuery(stream_);
       if (err == cudaSuccess) {
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         if (h2d_event_pending_) {
           float h2d_ms = 0.0f;
           CHECK_CUDA(cudaEventElapsedTime(&h2d_ms, h2d_start_event_,
@@ -834,15 +834,15 @@ bool TaskRunner::update_state() {
       bool ready = loader->poll_task(sub_lanes_[0].cid);
       if (ready) {
         double now = elapsed();
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         end_breakdown_cta_wait(now);
 #endif
         double wait_s = now - sub_lanes_[0].wait_start_time;
         time_ssd += wait_s;
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         breakdown_batch_ssd_time_ += wait_s;
 #endif
-#if defined(GUSTANN_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
+#if defined(GUSTANN_LATENCY_PROBE) || defined(GPIPEANN_LIGHT_BREAKDOWN)
         pending_hop_index_ = current_hop_index_;
         pending_hop_wait_us_ = wait_s * 1e6;
 #endif
@@ -854,14 +854,14 @@ bool TaskRunner::update_state() {
 
         time_gpu_issue -= elapsed();
         pending_hop_compute_start_ = elapsed();
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         time_resumption += pending_hop_compute_start_ - now;
         breakdown_batch_resumption_time_ +=
             pending_hop_compute_start_ - now;
 #endif
         time_gpu -= pending_hop_compute_start_;
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         CHECK_CUDA(cudaEventRecord(hop_compute_start_event_, stream_));
 #endif
         process_sublane_gpu(0);
@@ -872,13 +872,13 @@ bool TaskRunner::update_state() {
 #endif
           select_next_sublane(w);
         }
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         CHECK_CUDA(cudaEventRecord(hop_compute_done_event_, stream_));
         hop_compute_event_pending_ = true;
 #endif
 
         state_ = Q_BOOT_GPU;
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
       } else {
         start_breakdown_cta_wait();
 #endif
@@ -891,7 +891,7 @@ bool TaskRunner::update_state() {
       if (err == cudaSuccess) {
         double now = elapsed();
         double hop_compute_s = now - pending_hop_compute_start_;
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         if (hop_compute_event_pending_) {
           float hop_compute_ms = 0.0f;
           CHECK_CUDA(cudaEventElapsedTime(
@@ -903,13 +903,13 @@ bool TaskRunner::update_state() {
 #endif
         time_gpu += now;
         time_gpu_issue += elapsed();
-#if defined(GUSTANN_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
+#if defined(GUSTANN_LATENCY_PROBE) || defined(GPIPEANN_LIGHT_BREAKDOWN)
         hop_latencies.push_back(
             {pending_hop_index_, pending_hop_wait_us_,
              hop_compute_s * 1e6});
         current_hop_index_ = pending_hop_index_ + 1;
 #endif
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         breakdown_batch_compute_time_ += hop_compute_s;
         time_useful_compute += hop_compute_s;
 #endif
@@ -929,7 +929,7 @@ bool TaskRunner::update_state() {
 
     case Q_PIPE: {
       std::vector<int> completed;
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
       double ready_time_sum = 0.0;
       int ready_time_count = 0;
 #endif
@@ -940,12 +940,12 @@ bool TaskRunner::update_state() {
             double now = elapsed();
             double wait_s = now - sub_lanes_[w].wait_start_time;
             time_ssd += wait_s;
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
             ready_time_sum += now;
             ready_time_count++;
             breakdown_batch_ssd_time_ += wait_s;
 #endif
-#if defined(GUSTANN_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
+#if defined(GUSTANN_LATENCY_PROBE) || defined(GPIPEANN_LIGHT_BREAKDOWN)
             pending_hop_wait_us_ += wait_s * 1e6;
 #endif
 #ifdef GUSTANN_LATENCY_PROBE
@@ -967,24 +967,24 @@ bool TaskRunner::update_state() {
         }
         if (!any_pending) {
           finish_query();
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         } else {
           start_breakdown_cta_wait();
 #endif
         }
         break;
       }
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
       end_breakdown_cta_wait(elapsed());
 #endif
-#if defined(GUSTANN_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
+#if defined(GUSTANN_LATENCY_PROBE) || defined(GPIPEANN_LIGHT_BREAKDOWN)
       pending_hop_index_ = current_hop_index_;
       pending_hop_wait_us_ /= static_cast<double>(completed.size());
 #endif
 
       time_gpu_issue -= elapsed();
       pending_hop_compute_start_ = elapsed();
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
       if (ready_time_count > 0) {
         const double resume_time =
             pending_hop_compute_start_ * ready_time_count - ready_time_sum;
@@ -994,7 +994,7 @@ bool TaskRunner::update_state() {
 #endif
       time_gpu -= pending_hop_compute_start_;
 
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
       CHECK_CUDA(cudaEventRecord(hop_compute_start_event_, stream_));
 #endif
       for (int w : completed) {
@@ -1018,7 +1018,7 @@ bool TaskRunner::update_state() {
           }
         }
       }
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
       CHECK_CUDA(cudaEventRecord(hop_compute_done_event_, stream_));
       hop_compute_event_pending_ = true;
 #endif
@@ -1032,7 +1032,7 @@ bool TaskRunner::update_state() {
       if (err == cudaSuccess) {
         double now = elapsed();
         double hop_compute_s = now - pending_hop_compute_start_;
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         if (hop_compute_event_pending_) {
           float hop_compute_ms = 0.0f;
           CHECK_CUDA(cudaEventElapsedTime(
@@ -1044,14 +1044,14 @@ bool TaskRunner::update_state() {
 #endif
         time_gpu += now;
         time_gpu_issue += elapsed();
-#if defined(GUSTANN_LATENCY_PROBE) || defined(QUIVER_LIGHT_BREAKDOWN)
+#if defined(GUSTANN_LATENCY_PROBE) || defined(GPIPEANN_LIGHT_BREAKDOWN)
         hop_latencies.push_back(
             {pending_hop_index_, pending_hop_wait_us_,
              hop_compute_s * 1e6});
         current_hop_index_ = pending_hop_index_ + 1;
         pending_hop_wait_us_ = 0.0;
 #endif
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         breakdown_batch_compute_time_ += hop_compute_s;
         time_useful_compute += hop_compute_s;
 #endif
@@ -1094,7 +1094,7 @@ bool TaskRunner::update_state() {
     case Q_RES: {
       auto err = cudaStreamQuery(stream_);
       if (err == cudaSuccess) {
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         if (d2h_event_pending_) {
           float d2h_ms = 0.0f;
           CHECK_CUDA(cudaEventElapsedTime(&d2h_ms, d2h_start_event_,
@@ -1115,7 +1115,7 @@ bool TaskRunner::update_state() {
                               h_probe_traces_ + qcnt_);
         }
 #endif
-#ifdef QUIVER_LIGHT_BREAKDOWN
+#ifdef GPIPEANN_LIGHT_BREAKDOWN
         record_breakdown_batch_sample(t_done);
         finish_breakdown_cta_window(t_done);
 #endif

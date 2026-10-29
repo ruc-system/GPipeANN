@@ -26,6 +26,8 @@ To plot this set alone, ignoring any run of your own:
 ./ae/scripts/plot_all.py ae/results/Pre-executed-logs -o /tmp/pre-executed
 ```
 
+These AE runs are later measurements, not the inputs used for the submitted paper figures. `plot_all.py --verify` compares Figure 7(a) and 8(a) points against the submitted paper values, so mismatches on this directory do not mean the archived logs or plotted AE figures are corrupt. The saved inputs for the submitted figures are in `paper-plots/`.
+
 ## Refreshing these logs (authors only)
 
 Copy the CSVs of a completed run into the matching directory:

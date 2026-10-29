@@ -48,11 +48,11 @@ from paper_contract import (  # noqa: E402
 from paper_logs import Point, best_under, load_tree, pareto  # noqa: E402
 
 P99_CAP_MS = 10.0
-QUIVER_PLOT_LAT_MS = 30.0
+GPIPEANN_PLOT_LAT_MS = 30.0
 DATASET_ORDER = ("sift1b", "deep1b", "sift1m", "deep1m")
 
-ABLATION_DISPLAY = {"FlashANNS": "FlashANNS", "+S": "+S", "Quiver": "+S+C"}
-SYSTEM_DISPLAY = {"Quiver": "Quiver(ours)"}
+ABLATION_DISPLAY = {"FlashANNS": "FlashANNS", "+S": "+S", "GPipeANN": "+S+C"}
+SYSTEM_DISPLAY = {"GPipeANN": "GPipeANN(ours)"}
 TRADEOFF_CORNER = "upper left"
 BAR_CORNER = "upper left"
 # Paper-era host copies. Figure 7(b) reads Compute / kernel launch / Resume
@@ -67,11 +67,11 @@ PAPER_ABLATION_HOST_COPY_MS = {
 
 class Corpus:
     def __init__(self, points: list[Point], mode: str,
-                 quiver_grid: list[Point] | None = None,
+                 gpipeann_grid: list[Point] | None = None,
                  root: Path | None = None, phase_debug: bool = False):
         self.points = points
         self.mode = mode
-        self.quiver_grid = quiver_grid or []
+        self.gpipeann_grid = gpipeann_grid or []
         self.root = root
         self.phase_debug = phase_debug
 
@@ -101,7 +101,7 @@ class Corpus:
         pw = PAPER_PW.get(system)
         if pw is not None:
             out = [p for p in out if p.pipe_width == pw]
-        if restrict_q and system == "Quiver":
+        if restrict_q and system == "GPipeANN":
             keep = PAPER_E2E_QPB.get(dataset[:4], (1, 2, 3, 4))
             out = [p for p in out if p.qpb in keep]
         return out
@@ -135,7 +135,7 @@ def tradeoff_style(system: str) -> dict:
 
 def draw_tradeoff(
     ax, corpus: Corpus, dataset: str, ef: int, systems, stat: str,
-    *, drop_lowest_quiver: bool = False,
+    *, drop_lowest_gpipeann: bool = False,
     latency_cap: float | None = None,
 ) -> bool:
     drawn = False
@@ -145,12 +145,12 @@ def draw_tradeoff(
         pts = corpus.select(s, dataset, ef, restrict_q=True)
         if not pts:
             continue
-        pb = corpus.prefer_batch(dataset) and s == "Quiver"
+        pb = corpus.prefer_batch(dataset) and s == "GPipeANN"
         front = pareto(pts, stat, pb)
-        if drop_lowest_quiver and s == "Quiver" and len(front) > 1:
+        if drop_lowest_gpipeann and s == "GPipeANN" and len(front) > 1:
             lowest = min(front, key=lambda point: point.qps)
             front = [point for point in front if point is not lowest]
-        if latency_cap is not None and s == "Quiver":
+        if latency_cap is not None and s == "GPipeANN":
             front = [
                 p for p in front if p.latency(stat, pb) <= latency_cap
             ]
@@ -167,7 +167,7 @@ def draw_tradeoff(
     return drawn
 
 
-def draw_quiver_grid(
+def draw_gpipeann_grid(
     ax, corpus: Corpus, dataset: str, ef: int, stat: str,
     *, latency_cap: float | None = None,
 ) -> bool:
@@ -177,8 +177,8 @@ def draw_quiver_grid(
     front, so the overlay remains comparable to the submitted-system curves.
     """
     points = [
-        point for point in corpus.quiver_grid
-        if point.system == "Quiver"
+        point for point in corpus.gpipeann_grid
+        if point.system == "GPipeANN"
         and point.dataset == dataset
         and point.ef == ef
         and point.qpb in (1, 2, 3, 4)
@@ -207,7 +207,7 @@ def draw_quiver_grid(
     ax.plot(
         [point.latency(stat, prefer_batch) for point in front],
         [point.qps for point in front],
-        label="Quiver (Q=1–4 grid)",
+        label="GPipeANN (Q=1–4 grid)",
         color=color,
         marker="D",
         linestyle="--",
@@ -291,8 +291,8 @@ def fig_latency_qps(corpus: Corpus, out: Path) -> bool:
         return False
     fig, ax = plt.subplots(figsize=figure_size("latency_qps"))
     if not draw_tradeoff(
-        ax, corpus, ds, ef, ("GustANN", "FlashANNS", "Quiver"), "p99",
-        drop_lowest_quiver=True,
+        ax, corpus, ds, ef, ("GustANN", "FlashANNS", "GPipeANN"), "p99",
+        drop_lowest_gpipeann=True,
     ):
         plt.close(fig)
         return False
@@ -323,7 +323,7 @@ def fig_latency_qps(corpus: Corpus, out: Path) -> bool:
                 xycoords="axes fraction",
                 arrowprops={"arrowstyle": "->", "color": "#2CA02C", "lw": 1.0})
     handles, labels = complete_system_legend(
-        ("GustANN", "FlashANNS", "Quiver")
+        ("GustANN", "FlashANNS", "GPipeANN")
     )
     corpus.finish(
         fig, [[ax]], out,
@@ -351,11 +351,11 @@ def fig_e2e(corpus: Corpus, out: Path) -> bool:
             ef = corpus.ef_for(ds, bucket)
             show_data = not corpus.phase_debug or (bucket == "0.90" and stat == "p99")
             if show_data and ef is not None and draw_tradeoff(
-                    ax, corpus, ds, ef, ("FlashANNS", "GustANN", "Quiver"),
-                    stat, latency_cap=QUIVER_PLOT_LAT_MS):
+                    ax, corpus, ds, ef, ("FlashANNS", "GustANN", "GPipeANN"),
+                    stat, latency_cap=GPIPEANN_PLOT_LAT_MS):
                 drawn = True
-            if show_data and ef is not None and draw_quiver_grid(
-                    ax, corpus, ds, ef, stat, latency_cap=QUIVER_PLOT_LAT_MS):
+            if show_data and ef is not None and draw_gpipeann_grid(
+                    ax, corpus, ds, ef, stat, latency_cap=GPIPEANN_PLOT_LAT_MS):
                 drawn = True
             disp = E2E_DISPLAY.get(bucket, bucket)
             title = dataset_title(ds).replace("-", "")
@@ -391,7 +391,7 @@ def fig_e2e(corpus: Corpus, out: Path) -> bool:
         plt.close(fig)
         return False
     handles, labels = complete_system_legend(
-        ("FlashANNS", "GustANN", "Quiver")
+        ("FlashANNS", "GustANN", "GPipeANN")
     )
     corpus.finish(
         fig, axes, out,
@@ -408,7 +408,7 @@ def fig_ablation(corpus: Corpus, out: Path) -> bool:
     if ds is None:
         return False
     efs = sorted(EF_RECALL[ds])
-    series = ("FlashANNS", "+S", "Quiver")
+    series = ("FlashANNS", "+S", "GPipeANN")
     bars: dict[str, list[float]] = {s: [] for s in series}
     for s in series:
         for ef in efs:
@@ -565,7 +565,7 @@ def breakdown_points(corpus: Corpus) -> tuple[list[dict], list[str]]:
         ("GustANN", "GustANN", 48, 0),
         ("FlashANNS", "FlashANNS", 756, 0),
         ("+S", "+S", 324, 2),
-        ("Quiver", "+S+C", 216, 2),
+        ("GPipeANN", "+S+C", 216, 2),
     )
     stacks, labels = [], []
     for system, label, blocks, qpb in wanted:
@@ -624,7 +624,7 @@ def fig_q_sensitivity(corpus: Corpus, out: Path) -> bool:
         if flash_pts:
             got[1] = flash_pts[0].qps
         by_q: dict[int, list[Point]] = defaultdict(list)
-        for p in corpus.select("Quiver", ds, ef):
+        for p in corpus.select("GPipeANN", ds, ef):
             if p.qps > 0 and p.q != 1:
                 by_q[p.q].append(p)
         for q, pts in by_q.items():
@@ -654,7 +654,7 @@ def fig_q_sensitivity(corpus: Corpus, out: Path) -> bool:
         axes[0].yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(ps.thousands))
     ps.panel_label(axes[0], panel_tag(0, "Throughput"), BAR_CORNER)
 
-    # (b) is a separate Quiver occupancy run: pipe-width=1, num-block=108,
+    # (b) is a separate GPipeANN occupancy run: pipe-width=1, num-block=108,
     # Q = queries_per_block. The paper measured Q=1,2,4,6 this way and filled
     # Q=8; the selected AE path measures all five Q values the same way.
     ef90 = corpus.ef_for(ds, "0.90")
@@ -663,13 +663,13 @@ def fig_q_sensitivity(corpus: Corpus, out: Path) -> bool:
     for q in q_axis:
         qpts = [
             p for p in corpus.points
-            if p.system == "Quiver" and p.dataset == ds and p.ef == ef90
+            if p.system == "GPipeANN" and p.dataset == ds and p.ef == ef90
             and p.q == q and p.pipe_width == 1 and "CTA active %" in p.tech
         ]
         if not qpts:
             qpts = [
                 p for p in corpus.points
-                if p.system == "Quiver" and p.dataset == ds and p.ef == ef90
+                if p.system == "GPipeANN" and p.dataset == ds and p.ef == ef90
                 and p.q == q and "CTA active %" in p.tech
             ]
         if qpts:
@@ -727,8 +727,8 @@ def fig_q_sensitivity(corpus: Corpus, out: Path) -> bool:
 
 
 def fig_io_latency(corpus: Corpus, out: Path) -> bool:
-    systems = ("FlashANNS", "GustANN", "Quiver")
-    expected_blocks = {"FlashANNS": 756, "GustANN": 1120, "Quiver": 216}
+    systems = ("FlashANNS", "GustANN", "GPipeANN")
+    expected_blocks = {"FlashANNS": 756, "GustANN": 1120, "GPipeANN": 216}
     chosen = {}
     for s in systems:
         cands = [p for p in corpus.points
@@ -816,14 +816,14 @@ def fig_io_latency(corpus: Corpus, out: Path) -> bool:
     ):
         xs_all: list[float] = []
         # Figure 3(b) compares all schedulers. Figure 3(c) illustrates the
-        # stability of Quiver's steady per-hop compute work with one curve.
-        plot_systems = labels if metric == "IO wait" else ("Quiver",)
+        # stability of GPipeANN's steady per-hop compute work with one curve.
+        plot_systems = labels if metric == "IO wait" else ("GPipeANN",)
         for s in plot_systems:
             field = "wait_us" if metric == "IO wait" else "compute_us"
             # Stall variability is the phenomenon panel (b) compares, so keep
             # each steady query-hop observation. Panel (c) asks whether the
             # work of graph hop N is predictable; average query instances at
-            # the same hop before constructing that single Quiver CDF.
+            # the same hop before constructing that single GPipeANN CDF.
             samples = (
                 steady_samples(s, field)
                 if metric == "IO wait"
@@ -865,7 +865,7 @@ def fig_io_latency(corpus: Corpus, out: Path) -> bool:
             x_offset=0.07 if index == 1 else 0.0,
         )
     handles, legend_labels = ps.legend_entries(
-        [axes[1], axes[2]], ("GustANN", "FlashANNS", "Quiver")
+        [axes[1], axes[2]], ("GustANN", "FlashANNS", "GPipeANN")
     )
     axes[1].set_yticklabels([])
     axes[2].yaxis.tick_right()
@@ -913,7 +913,7 @@ def _pair_front(points: list[tuple[float, float]]) -> list[tuple[float, float]]:
 
 
 def fig_fusion(corpus: Corpus, out: Path) -> bool:
-    """Single-SSD Quiver 1B vs FusionANNS 100M; plot the Pareto front."""
+    """Single-SSD GPipeANN 1B vs FusionANNS 100M; plot the Pareto front."""
     root = corpus.root
     if root is None:
         return False
@@ -935,22 +935,22 @@ def fig_fusion(corpus: Corpus, out: Path) -> bool:
         )
         qpoints = [
             p for p in corpus.points
-            if p.system == "Quiver" and p.dataset == dataset
+            if p.system == "GPipeANN" and p.dataset == dataset
             and "_1ssd" in p.stem and p.qps > 0
         ]
-        # Keep the paper's Quiver latency window; FusionANNS itself has no
+        # Keep the paper's GPipeANN latency window; FusionANNS itself has no
         # hard latency or Recall cutoff and is handled below by Pareto only.
         qpoints = [
             p for p in qpoints
-            if p.latency("p99", corpus.prefer_batch(dataset)) <= QUIVER_PLOT_LAT_MS
+            if p.latency("p99", corpus.prefer_batch(dataset)) <= GPIPEANN_PLOT_LAT_MS
         ]
         qfront = pareto(qpoints, "p99", corpus.prefer_batch(dataset))
         if qfront:
             ax.plot(
                 [p.latency("p99", corpus.prefer_batch(dataset)) for p in qfront],
                 [p.qps for p in qfront],
-                label="Quiver(ours)",
-                **ps.line_style("Quiver"),
+                label="GPipeANN(ours)",
+                **ps.line_style("GPipeANN"),
             )
             drawn = True
 
@@ -983,8 +983,8 @@ def fig_fusion(corpus: Corpus, out: Path) -> bool:
     if not drawn:
         plt.close(fig)
         return False
-    handles, labels = complete_system_legend(("FusionANNS", "Quiver"))
-    labels = ["FusionANNS (100M)", "Quiver (1B)"]
+    handles, labels = complete_system_legend(("FusionANNS", "GPipeANN"))
+    labels = ["FusionANNS (100M)", "GPipeANN (1B)"]
     corpus.finish(
         fig, [list(axes)], out,
         xlabel="P99 Latency (ms)",
@@ -1004,7 +1004,7 @@ SUBMITTED_ABLATION = {
                   65: 39633.64, 80: 30674.68, 120: 14109.73},
     "+S": {40: 82876.13, 45: 73771.83, 55: 61087.22,
            65: 52977.83, 80: 35669.08, 120: 23293.84},
-    "Quiver": {40: 98590.07, 45: 92716.63, 55: 75881.63,
+    "GPipeANN": {40: 98590.07, 45: 92716.63, 55: 75881.63,
                65: 59088.07, 80: 44834.81, 120: 27757.88},
 }
 SUBMITTED_Q = {
@@ -1048,7 +1048,7 @@ def verify(corpus: Corpus) -> None:
         if flash and flash.latency("p99") < P99_CAP_MS:
             got[1] = flash.qps
         by_q: dict[int, list[Point]] = defaultdict(list)
-        for p in corpus.select("Quiver", ds, ef):
+        for p in corpus.select("GPipeANN", ds, ef):
             by_q[p.q].append(p)
         for q, pts in by_q.items():
             best = best_under(pts, P99_CAP_MS, "p99")
@@ -1109,10 +1109,10 @@ def main() -> int:
               "isolated run, otherwise ae/figures)"),
     )
     ap.add_argument("--mode", choices=("paper", "full"), default="paper")
-    ap.add_argument("--quiver-grid", type=Path,
-                    help="overlay a Q=1..4 Quiver grid on matching e2e panels")
+    ap.add_argument("--gpipeann-grid", type=Path,
+                    help="overlay a Q=1..4 GPipeANN grid on matching e2e panels")
     ap.add_argument("--verify", action="store_true",
-                    help="diff Figure 7(a)/8(a) against the submitted values")
+                    help="compare Figure 7(a)/8(a) with submitted paper values; later AE runs may differ")
     ap.add_argument(
         "--phase-debug", action="store_true",
         help="keep the submitted layouts but draw only the current reduced data",
@@ -1161,17 +1161,19 @@ def main() -> int:
               f"{len(jobs)} completed figure result(s)  (mode={args.mode})")
 
     grid_points: list[Point] = []
-    if args.quiver_grid is not None:
-        if not args.quiver_grid.exists():
-            print(f"missing {args.quiver_grid}", file=sys.stderr)
+    if args.gpipeann_grid is not None:
+        if not args.gpipeann_grid.exists():
+            print(f"missing {args.gpipeann_grid}", file=sys.stderr)
             return 1
-        grid_points = load_tree(args.quiver_grid)
-        print(f"overlaying {len(grid_points)} Quiver grid points from "
-              f"{args.quiver_grid}")
+        grid_points = load_tree(args.gpipeann_grid)
+        print(f"overlaying {len(grid_points)} GPipeANN grid points from "
+              f"{args.gpipeann_grid}")
     corpus = Corpus(
         all_points, args.mode, grid_points, args.src, args.phase_debug
     )
     if args.verify:
+        if "Pre-executed-logs" in args.src.parts:
+            print("Note: this AE archive contains later measurements; --verify compares them with submitted paper values.")
         verify(corpus)
         print()
     args.out_dir.mkdir(parents=True, exist_ok=True)

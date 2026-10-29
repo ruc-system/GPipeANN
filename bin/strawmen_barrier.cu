@@ -1,7 +1,7 @@
 // Strawman barrier: per-hop block barrier (strawman Q-mini-batch).
 //
-// Built only when -DQUIVER_BUILD_STRAWMEN=ON. See
-// CLI mirrors quiver_search exactly so the only ablated variable is the
+// Built only when -DGPIPEANN_BUILD_STRAWMEN=ON. See
+// CLI mirrors gpipeann_search exactly so the only ablated variable is the
 // scheduler discipline inside the GPU kernel. Default Q=2 (the typical
 // failure point); --queries-per-block must be >= 2.
 
@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-#include "../src/quiver/search.cuh"
+#include "../src/gpipeann/search.cuh"
 #include "shared/common/log_config.hpp"
 
 #include "common/cli_shared.hpp"
@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
         poll_threads, pipe_width, queries_per_block, setup.layout.io_bytes);
     if (!loader) return 1;
 
-    quiver::run_barrier_search(
+    gpipeann::run_barrier_search(
         setup.layout, setup.data_type, pipe_width, poll_threads, run_nb,
         loader, setup.pq.get(), setup.nav.get(),
         static_cast<int>(setup.layout.enter_point), starter.get(),

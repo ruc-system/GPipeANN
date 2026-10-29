@@ -16,7 +16,7 @@ export HANG_FLOOR="${HANG_FLOOR:-300}"
 
 require_bin flashanns_search
 require_bin gustann_search
-require_bin quiver_search
+require_bin gpipeann_search
 ae_lock
 use_dataset sift
 OUT="$(prepare_out io_latency)"
@@ -29,8 +29,8 @@ FLASH_BLOCKS="${FLASH_BLOCKS:-${POINT_FLASH_BLOCKS}}"
 # captures the driver/stream queuing tail. Figure 7(b) intentionally keeps
 # POINT_GUST_MINI_BATCH=48 for its separate fixed-point breakdown.
 GUST_MINI_BATCH="${GUST_MINI_BATCH:-1120}"
-QUIVER_BLOCKS="${QUIVER_BLOCKS:-${POINT_QUIVER_BLOCKS}}"
-QUIVER_Q="${QUIVER_Q:-${QUERIES_PER_BLOCK}}"
+GPIPEANN_BLOCKS="${GPIPEANN_BLOCKS:-${POINT_GPIPEANN_BLOCKS}}"
+GPIPEANN_Q="${GPIPEANN_Q:-${QUERIES_PER_BLOCK}}"
 EF="${EF:-${EF_RECALL_90}}"
 
 run_search "${OUT}/flashanns_${DATASET}_ef${EF}_nb${FLASH_BLOCKS}.log" \
@@ -62,8 +62,8 @@ run_search "${OUT}/gustann_${DATASET}_ef${EF}_mb${GUST_MINI_BATCH}.log" \
   --ssd-list-file "${SSD_LIST}" \
   --mini-batch "${GUST_MINI_BATCH}"
 
-run_search "${OUT}/quiver_${DATASET}_ef${EF}_q${QUIVER_Q}_nb${QUIVER_BLOCKS}.log" \
-  "${BIN_DIR}/bin/quiver_search" \
+run_search "${OUT}/gpipeann_${DATASET}_ef${EF}_q${GPIPEANN_Q}_nb${GPIPEANN_BLOCKS}.log" \
+  "${BIN_DIR}/bin/gpipeann_search" \
   --index-dir "${INDEX_DIR}" \
   --query "${QUERY}" \
   --ground-truth "${GT}" \
@@ -71,11 +71,11 @@ run_search "${OUT}/quiver_${DATASET}_ef${EF}_q${QUIVER_Q}_nb${QUIVER_BLOCKS}.log
   --topk "${TOPK}" \
   --ef-search "${EF}" \
   --repeat "${REPEAT}" \
-  --pipe-width "${PIPE_WIDTH_QUIVER}" \
-  --queries-per-block "${QUIVER_Q}" \
+  --pipe-width "${PIPE_WIDTH_GPIPEANN}" \
+  --queries-per-block "${GPIPEANN_Q}" \
   --poll-threads "${POLL_THREADS}" \
   --early-exit-policy none \
   --ssd-list-file "${SSD_LIST}" \
-  --num-blocks "${QUIVER_BLOCKS}"
+  --num-blocks "${GPIPEANN_BLOCKS}"
 
 echo "DONE ${OUT}"

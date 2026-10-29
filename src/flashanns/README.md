@@ -3,19 +3,19 @@
 ## Provenance and license
 
 This directory contains an independent reimplementation of
-[FlashANNS](https://doi.org/10.1145/3786652) written by the Quiver authors from
+[FlashANNS](https://doi.org/10.1145/3786652) written by the GPipeANN authors from
 the algorithm and system descriptions in the published paper. It is not source
 code from the FlashANNS authors and is not an official FlashANNS release. We
-were not aware of a public official implementation when preparing the Quiver
+were not aware of a public official implementation when preparing the GPipeANN
 artifact.
 
-The code in this directory is released with the Quiver artifact under the
+The code in this directory is released with the GPipeANN artifact under the
 repository's [Apache License 2.0](../../LICENSE).
 
 ## Implemented design
 
 The implementation provides the search-side FlashANNS baseline used in the
-Quiver evaluation:
+GPipeANN evaluation:
 
 - SSD-resident graph traversal with GPU PQ distance evaluation;
 - one query statically assigned to each CUDA thread block for the duration of
@@ -46,8 +46,8 @@ From the repository root, build the baseline with:
 ```bash
 cmake -S . -B build \
   -DCMAKE_BUILD_TYPE=Release \
-  -DQUIVER_ENABLE_SPDK=ON \
-  -DQUIVER_BUILD_STRAWMEN=OFF
+  -DGPIPEANN_ENABLE_SPDK=ON \
+  -DGPIPEANN_BUILD_STRAWMEN=OFF
 cmake --build build -j"$(nproc)" --target flashanns_search
 ```
 

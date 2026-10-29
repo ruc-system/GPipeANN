@@ -7,7 +7,7 @@ source "${DIR}/common.sh"
 source "${DIR}/paper_knobs.sh"
 apply_paper_knobs
 
-require_bin quiver_search
+require_bin gpipeann_search
 ae_lock
 OUT="$(prepare_out openai1m_nav_ef_sweep)"
 cd "${ROOT}"
@@ -30,8 +30,8 @@ EF_LIST="${OPENAI1M_NAV_EF_LIST:-45 50 55 60 65 70 75 80 85}"
 } >> "${OUT}/env.txt"
 
 for ef in ${EF_LIST}; do
-  run_search "${OUT}/quiver_openai1m_nav_ef${ef}_q1_pw2.log" \
-    "${BIN_DIR}/bin/quiver_search" --index-dir "${NAV_INDEX_DIR}" \
+  run_search "${OUT}/gpipeann_openai1m_nav_ef${ef}_q1_pw2.log" \
+    "${BIN_DIR}/bin/gpipeann_search" --index-dir "${NAV_INDEX_DIR}" \
     --query "${QUERY}" --ground-truth "${GT}" --data-type float \
     --topk "${TOPK}" --ef-search "${ef}" --repeat 1 \
     --pipe-width 2 --queries-per-block 1 --poll-threads "${POLL_THREADS}" \
@@ -46,7 +46,7 @@ from pathlib import Path
 
 out = Path(sys.argv[1])
 rows = []
-for log in sorted(out.glob("quiver_openai1m_nav_ef*_q1_pw2.log"),
+for log in sorted(out.glob("gpipeann_openai1m_nav_ef*_q1_pw2.log"),
                   key=lambda p: int(re.search(r"ef(\d+)", p.name)[1])):
     text = log.read_text()
     ef = int(re.search(r"ef(\d+)", log.name)[1])

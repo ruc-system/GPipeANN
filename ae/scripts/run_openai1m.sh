@@ -7,7 +7,7 @@ source "${DIR}/common.sh"
 source "${DIR}/paper_knobs.sh"
 apply_paper_knobs
 
-require_bin quiver_search
+require_bin gpipeann_search
 require_bin flashanns_search
 require_bin gustann_search
 ae_lock
@@ -36,7 +36,7 @@ OPENAI_MBS="${OPENAI1M_MINI_BATCH_LIST}"
   echo "navigation=enabled nav_sample=first10000 nav_R=32 nav_Lbuild=50"
   echo "SPDK_BASE_LBA=${SPDK_BASE_LBA} SPDK_IO_BYTES=${SPDK_IO_BYTES}"
 } >> "${OUT}/env.txt"
-export QUIVER_AE_TARGET_RECALL_OVERRIDE=0.90
+export GPIPEANN_AE_TARGET_RECALL_OVERRIDE=0.90
 
 run_search "${OUT}/flashanns_openai1m_ef${EF}_pw2.log" \
   "${BIN_DIR}/bin/flashanns_search" --index-dir "${SEARCH_INDEX_DIR}" \
@@ -54,15 +54,15 @@ run_search "${OUT}/gustann_openai1m_ef${EF}_pw1.log" \
   --mini-batch-list "${OPENAI_MBS}"
 
 for q in 1 2; do
-  quiver_nbs="${OPENAI1M_QUIVER_Q1_NBS}"
-  if [[ "$q" == 2 ]]; then quiver_nbs="${OPENAI1M_QUIVER_Q2_NBS}"; fi
-  run_search "${OUT}/quiver_openai1m_ef${EF}_q${q}_pw2.log" \
-    "${BIN_DIR}/bin/quiver_search" --index-dir "${SEARCH_INDEX_DIR}" \
+  gpipeann_nbs="${OPENAI1M_GPIPEANN_Q1_NBS}"
+  if [[ "$q" == 2 ]]; then gpipeann_nbs="${OPENAI1M_GPIPEANN_Q2_NBS}"; fi
+  run_search "${OUT}/gpipeann_openai1m_ef${EF}_q${q}_pw2.log" \
+    "${BIN_DIR}/bin/gpipeann_search" --index-dir "${SEARCH_INDEX_DIR}" \
     --query "${QUERY}" --ground-truth "${GT}" --data-type float \
     --topk "${TOPK}" --ef-search "${EF}" --repeat "${REPEAT_OPENAI}" \
     --pipe-width 2 --queries-per-block "${q}" --poll-threads "${POLL_THREADS}" \
     --early-exit-policy none --ssd-list-file "${SSD_LIST}" \
-    --num-blocks-list "${quiver_nbs}"
+    --num-blocks-list "${gpipeann_nbs}"
 done
 
 echo "DONE ${OUT}"

@@ -2,7 +2,7 @@
 # Repeated fresh-process runs, without retries or reuse of cached results.
 # Defaults reproduce reviewer A9's DEEP-1B Figure 5 failure point.
 # Example: STABILITY_ATTEMPTS=3 STABILITY_Q=4 STABILITY_BLOCKS=864,972 \
-#            bash ae/scripts/test_quiver_io_stability.sh
+#            bash ae/scripts/test_gpipeann_io_stability.sh
 set -euo pipefail
 DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "${DIR}/common.sh"
@@ -15,23 +15,23 @@ for value in "${attempts}" "${timeout_s}"; do
     exit 2
   }
 done
-require_bin quiver_search
+require_bin gpipeann_search
 ae_lock
 use_dataset "${STABILITY_DATASET:-deep1b}"
 mkdir -p "${ROOT}/.cache"
 out="$(mktemp -d "${ROOT}/.cache/io-stability.XXXXXX")"
 echo "Validation logs: ${out}"
 date -Is > "${out}/started.txt"
-sha256sum "${BIN_DIR}/bin/quiver_search" > "${out}/binary.sha256"
+sha256sum "${BIN_DIR}/bin/gpipeann_search" > "${out}/binary.sha256"
 
 numa_args=()
 read -r -a numa_args <<< "${AE_NUMA_PREFIX}"
 search_cmd=(sudo -n env
   "CUDA_VISIBLE_DEVICES=${GPU_ID}" SPDK_QPAIRS_PER_SSD=1 SPDK_NUM_QP=1
-  QUIVER_SPDK_DIAG=0 "SPDK_BASE_LBA=${SPDK_BASE_LBA}"
-  "QUIVER_SPDK_BLOCK_OFFSET=${QUIVER_SPDK_BLOCK_OFFSET}"
+  GPIPEANN_SPDK_DIAG=0 "SPDK_BASE_LBA=${SPDK_BASE_LBA}"
+  "GPIPEANN_SPDK_BLOCK_OFFSET=${GPIPEANN_SPDK_BLOCK_OFFSET}"
   timeout --kill-after=10 "${timeout_s}" "${numa_args[@]}"
-  "${BIN_DIR}/bin/quiver_search"
+  "${BIN_DIR}/bin/gpipeann_search"
   --index-dir "${INDEX_DIR}" --query "${QUERY}" --ground-truth "${GT}"
   --data-type "${DATA_TYPE}" --topk 10 --ef-search "${STABILITY_EF:-145}"
   --repeat "${REPEAT:-20}" --pipe-width 2

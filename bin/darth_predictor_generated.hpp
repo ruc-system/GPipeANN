@@ -1,6 +1,6 @@
 #pragma once
 
-namespace quiver {
+namespace gpipeann {
 
 inline float predict_darth_tree(int tree_id, const float* f) {
   switch (tree_id) {
@@ -4745,4 +4745,4 @@ inline float predict_darth_recall(const DarthCommSlot& feature) {
   return pred;
 }
 
-}  // namespace quiver
+}  // namespace gpipeann
